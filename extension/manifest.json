@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "PhishGuard — Email Security",
+  "version": "1.0.0",
+  "description": "Real-time phishing detection in Gmail using Levenshtein Distance. Hover over any sender to see instant threat analysis.",
+
+  "permissions": ["storage", "activeTab", "identity"],
+  "host_permissions": ["https://mail.google.com/*"],
+
+  "oauth2": {
+    "client_id": "627632024826-9elho08tea20ocgt7qqspams7dnugofs.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.profile"
+    ]
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["https://mail.google.com/*"],
+      "js": ["domains.js", "levenshtein.js", "spam.js", "content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "PhishGuard",
+    "default_icon": {
+      "16":  "icons/icon16.png",
+      "48":  "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+
+  "icons": {
+    "16":  "icons/icon16.png",
+    "48":  "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

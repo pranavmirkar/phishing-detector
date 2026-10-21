@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PhishGuard — Domain Tester</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0f1117;
+    color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    padding: 32px 16px;
+  }
+  .container { max-width: 720px; margin: 0 auto; }
+
+  h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; color: #fff; }
+  .sub { color: #64748b; font-size: 13px; margin-bottom: 28px; }
+
+  /* Input */
+  .input-row { display: flex; gap: 10px; margin-bottom: 20px; }
+  input {
+    flex: 1; background: #1e2330; border: 1px solid #2d3748;
+    border-radius: 8px; padding: 10px 14px; color: #e2e8f0;
+    font-size: 14px; outline: none;
+  }
+  input:focus { border-color: #6366f1; }
+  button {
+    background: #6366f1; color: #fff; border: none;
+    border-radius: 8px; padding: 10px 20px; font-size: 14px;
+    font-weight: 600; cursor: pointer;
+  }
+  button:hover { background: #4f46e5; }
+
+  /* Examples */
+  .examples { margin-bottom: 28px; }
+  .examples-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    background: #1e2330; border: 1px solid #2d3748;
+    border-radius: 20px; padding: 5px 12px; font-size: 12px;
+    cursor: pointer; color: #94a3b8; transition: all .15s;
+  }
+  .chip:hover { border-color: #6366f1; color: #a5b4fc; }
+  .chip.danger  { border-color: #ef444430; color: #fca5a5; }
+  .chip.medium  { border-color: #f59e0b30; color: #fcd34d; }
+  .chip.safe    { border-color: #22c55e30; color: #86efac; }
+
+  /* Result card */
+  #result { display: none; }
+  .card {
+    background: #1a1f2e; border: 1px solid #2d3748;
+    border-radius: 12px; overflow: hidden; margin-bottom: 16px;
+  }
+  .card-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 18px; border-bottom: 1px solid #2d3748;
+  }
+  .shield { width: 28px; height: 28px; }
+  .card-title { font-size: 15px; font-weight: 700; flex: 1; }
+  .domain-badge {
+    background: #0f1117; border: 1px solid #2d3748;
+    border-radius: 6px; padding: 3px 10px; font-family: monospace; font-size: 13px; color: #a5b4fc;
+  }
+
+  .risk-banner {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 18px; border-bottom: 1px solid #2d3748;
+  }
+  .risk-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .risk-label { font-size: 15px; font-weight: 700; }
+  .risk-score { margin-left: auto; font-size: 20px; font-weight: 800; }
+
+  .detail-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 18px; border-bottom: 1px solid #1e2330;
+    font-size: 13px;
+  }
+  .detail-label { color: #64748b; width: 140px; flex-shrink: 0; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+  .detail-val { color: #e2e8f0; }
+  .detail-val.mono { font-family: monospace; color: #a5b4fc; }
+
+  .warning-item {
+    margin: 0 18px 10px; border-radius: 8px;
+    padding: 10px 14px; font-size: 13px; display: flex; gap: 8px; align-items: flex-start;
+  }
+  .warning-item:first-of-type { margin-top: 14px; }
+  .warning-item.high   { background: rgba(239,68,68,.1);  border: 1px solid rgba(239,68,68,.2); }
+  .warning-item.medium { background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.2); }
+  .warning-item.low    { background: rgba(34,197,94,.1);  border: 1px solid rgba(34,197,94,.2); }
+  .warn-icon { font-size: 15px; flex-shrink: 0; }
+  .warn-text { color: #e2e8f0; }
+  .warn-sev  { font-size: 10px; font-weight: 700; letter-spacing: .08em; margin-right: 6px; }
+  .high   .warn-sev { color: #ef4444; }
+  .medium .warn-sev { color: #f59e0b; }
+
+  /* Similarity bars */
+  .bars-section { padding: 14px 18px; }
+  .bars-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 12px; }
+  .bar-name { width: 160px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; }
+  .bar-track { flex: 1; height: 6px; background: #2d3748; border-radius: 3px; overflow: hidden; }
+  .bar-fill  { height: 100%; border-radius: 3px; transition: width .4s ease; }
+  .bar-pct   { width: 42px; text-align: right; color: #94a3b8; }
+
+  .safe-banner {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 18px; color: #22c55e; font-size: 14px; font-weight: 600;
+  }
+
+  /* Stats footer */
+  .stats { display: flex; gap: 12px; margin-top: 16px; }
+  .stat-box {
+    flex: 1; background: #1a1f2e; border: 1px solid #2d3748;
+    border-radius: 10px; padding: 14px; text-align: center;
+  }
+  .stat-num { font-size: 22px; font-weight: 800; color: #a5b4fc; }
+  .stat-lbl { font-size: 11px; color: #64748b; margin-top: 2px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🛡️ PhishGuard — Domain Tester</h1>
+  <p class="sub">Test any domain against 50,000 trusted domains using Levenshtein Distance</p>
+
+  <div class="input-row">
+    <input id="domainInput" type="text" placeholder="Enter domain (e.g. paypa1.com)" />
+    <button onclick="runAnalysis()">Analyze</button>
+  </div>
+
+  <div class="examples">
+    <div class="examples-label">Try these examples</div>
+    <div class="chips">
+      <span class="chip danger" onclick="test('paypa1.com')">paypa1.com <small>HIGH</small></span>
+      <span class="chip danger" onclick="test('miсrosoft.com')">miсrosoft.com <small>HOMOGLYPH</small></span>
+      <span class="chip danger" onclick="test('arnazon.com')">arnazon.com <small>rn→m</small></span>
+      <span class="chip danger" onclick="test('google-security.net')">google-security.net <small>LOOKALIKE</small></span>
+      <span class="chip danger" onclick="test('secure-paypal.com')">secure-paypal.com <small>SUBDOMAIN</small></span>
+      <span class="chip danger" onclick="test('g00gle.com')">g00gle.com <small>HOMOGLYPH</small></span>
+      <span class="chip medium" onclick="test('netfl1x.com')">netfl1x.com <small>MEDIUM</small></span>
+      <span class="chip medium" onclick="test('linkedln.com')">linkedln.com <small>MEDIUM</small></span>
+      <span class="chip safe" onclick="test('google.com')">google.com <small>SAFE</small></span>
+      <span class="chip safe" onclick="test('accounts.google.com')">accounts.google.com <small>SAFE</small></span>
+      <span class="chip safe" onclick="test('github.com')">github.com <small>SAFE</small></span>
+    </div>
+  </div>
+
+  <div id="result"></div>
+
+  <div class="stats">
+    <div class="stat-box">
+      <div class="stat-num" id="statDomains">50,000</div>
+      <div class="stat-lbl">Trusted Domains</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num" id="statPool">1,000</div>
+      <div class="stat-lbl">Levenshtein Pool</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num" id="statTime">—</div>
+      <div class="stat-lbl">Analysis Time</div>
+    </div>
+  </div>
+</div>
+
+<script src="domains.js"></script>
+<script src="levenshtein.js"></script>
+<script>
+function test(domain) {
+  document.getElementById('domainInput').value = domain
+  runAnalysis()
+}
+
+function runAnalysis() {
+  const raw = document.getElementById('domainInput').value.trim().toLowerCase()
+  if (!raw) return
+
+  const t0 = performance.now()
+  const r  = analyzeDomain(raw)
+  const ms = (performance.now() - t0).toFixed(1)
+
+  document.getElementById('statTime').textContent = ms + 'ms'
+  if (typeof TRUSTED_SET !== 'undefined') {
+    document.getElementById('statDomains').textContent = TRUSTED_SET.size.toLocaleString()
+  }
+  if (typeof TRUSTED_POOL !== 'undefined') {
+    document.getElementById('statPool').textContent = TRUSTED_POOL.length.toLocaleString()
+  }
+
+  renderResult(raw, r)
+}
+
+function renderResult(domain, r) {
+  const color = r.riskScore === 'HIGH' ? '#ef4444' : r.riskScore === 'MEDIUM' ? '#f59e0b' : '#22c55e'
+  const label = r.riskScore === 'LOW' ? 'SAFE' : r.riskScore + ' RISK'
+
+  let html = `
+  <div class="card">
+    <div class="card-header">
+      <svg class="shield" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L4 6v6c0 5.25 3.75 10.15 8 11.35C16.25 22.15 20 17.25 20 12V6L12 2z"
+          fill="${color}" fill-opacity=".15" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M9 12l2 2 4-4" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="card-title">PhishGuard Analysis</span>
+      <span class="domain-badge">${domain}</span>
+    </div>
+
+    <div class="risk-banner" style="background:${color}12">
+      <div class="risk-dot" style="background:${color}"></div>
+      <span class="risk-label" style="color:${color}">${label}</span>
+      <span class="risk-score" style="color:${color}">${r.riskLevel}/100</span>
+    </div>`
+
+  if (r.safe) {
+    html += `<div class="safe-banner">✓ Verified trusted domain — no threats detected</div>`
+  } else {
+    if (r.homoglyphDetected) {
+      html += row('Normalized form', r.normalized, true)
+    }
+    if (r.bestMatch) {
+      html += row('Closest trusted domain', `${r.bestMatch.trusted} &nbsp;(distance = ${r.bestMatch.distance})`)
+      html += row('Similarity', r.bestMatch.similarity + '%')
+    }
+
+    if (r.warnings?.length) {
+      r.warnings.forEach(w => {
+        const icon = w.severity === 'HIGH' ? '🚨' : '⚠️'
+        html += `<div class="warning-item ${w.severity.toLowerCase()}">
+          <span class="warn-icon">${icon}</span>
+          <span class="warn-text"><span class="warn-sev">${w.severity}</span>${w.message}</span>
+        </div>`
+      })
+    }
+
+    if (r.topMatches?.length) {
+      html += `<div class="bars-section">
+        <div class="bars-label">Top similarity matches</div>`
+      r.topMatches.forEach(m => {
+        const bc = m.similarity > 80 ? '#ef4444' : m.similarity > 60 ? '#f59e0b' : '#6366f1'
+        html += `<div class="bar-row">
+          <span class="bar-name">${m.trusted}</span>
+          <div class="bar-track"><div class="bar-fill" style="width:${m.similarity}%;background:${bc}"></div></div>
+          <span class="bar-pct">${m.similarity}%</span>
+        </div>`
+      })
+      html += `</div>`
+    }
+  }
+
+  html += `</div>`
+  const el = document.getElementById('result')
+  el.style.display = 'block'
+  el.innerHTML = html
+}
+
+function row(label, val, mono = false) {
+  return `<div class="detail-row">
+    <span class="detail-label">${label}</span>
+    <span class="detail-val ${mono ? 'mono' : ''}">${val}</span>
+  </div>`
+}
+
+document.getElementById('domainInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runAnalysis()
+})
+</script>
+</body>
+</html>

@@ -1,0 +1,166 @@
+/* PhishGuard Gmail panel — injected alongside Gmail's native hover card */
+
+#phishguard-panel {
+  position: fixed;
+  z-index: 9999999;
+  width: 290px;
+  background: #111120;
+  border: 1px solid #1c1c2e;
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.3);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #e2e8f0;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity .18s ease, transform .18s ease;
+  pointer-events: all;
+  overflow: hidden;
+}
+
+#phishguard-panel.pg-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Header */
+.pg-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #1c1c2e;
+  background: #0d0d18;
+}
+.pg-shield   { width: 18px; height: 18px; flex-shrink: 0; }
+.pg-title    { font-weight: 600; font-size: 12px; letter-spacing: .3px; flex: 1; color: #e2e8f0; }
+.pg-close    { background: none; border: none; color: #4b5563; cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; transition: color .15s; }
+.pg-close:hover { color: #e2e8f0; }
+
+/* Domain row */
+.pg-domain-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 6px;
+  gap: 8px;
+}
+.pg-label  { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: #4b5563; flex-shrink: 0; }
+.pg-code   { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11px; color: #e2e8f0; background: #0d0d18; padding: 2px 6px; border-radius: 4px; max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Risk badge */
+.pg-risk {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 12px 8px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+}
+.pg-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.pg-risk-label { font-weight: 700; font-size: 11px; letter-spacing: .06em; }
+.pg-score { font-size: 10px; color: inherit; opacity: .7; margin-left: auto; font-family: 'JetBrains Mono', monospace; }
+
+/* Match row */
+.pg-match-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px 8px;
+  gap: 8px;
+  font-size: 11px;
+}
+.pg-safe      { color: #22c55e; font-size: 11px; }
+.pg-match-val { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #e2e8f0; }
+
+/* Warnings */
+.pg-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: #94a3b8;
+  border-top: 1px solid #1c1c2e;
+}
+.pg-warn-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+.pg-warning-high   .pg-warn-dot { background: #ef4444; }
+.pg-warning-medium .pg-warn-dot { background: #f59e0b; }
+.pg-warning-low    .pg-warn-dot { background: #22c55e; }
+.pg-warning-high   { color: #fca5a5; }
+.pg-warning-medium { color: #fcd34d; }
+
+/* Score breakdown (phishing + spam) */
+.pg-breakdown {
+  padding: 6px 12px 8px;
+  border-top: 1px solid #1c1c2e;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.pg-breakdown-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.pg-breakdown-label {
+  font-size: 10px;
+  color: #4b5563;
+  width: 68px;
+  flex-shrink: 0;
+}
+.pg-mini-bar-track {
+  flex: 1;
+  height: 4px;
+  background: #1c1c2e;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.pg-mini-bar {
+  height: 100%;
+  border-radius: 10px;
+  transition: width .4s;
+}
+.pg-breakdown-score {
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  width: 24px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Subject row */
+.pg-subject-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 12px 8px;
+  font-size: 11px;
+  border-top: 1px solid #1c1c2e;
+}
+.pg-subject-text {
+  color: #94a3b8;
+  flex: 1;
+  line-height: 1.4;
+}
+
+/* Similarity bars */
+.pg-bars {
+  padding: 8px 12px 12px;
+  border-top: 1px solid #1c1c2e;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pg-bar-row   { display: flex; align-items: center; gap: 7px; }
+.pg-bar-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #4b5563; width: 100px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pg-bar-track { flex: 1; height: 4px; background: #1c1c2e; border-radius: 10px; overflow: hidden; }
+.pg-bar-fill  { height: 100%; border-radius: 10px; transition: width .4s; }
+.pg-bar-pct   { font-size: 10px; color: #4b5563; width: 32px; text-align: right; flex-shrink: 0; font-family: 'JetBrains Mono', monospace; }

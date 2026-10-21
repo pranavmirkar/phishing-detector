@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "PhishGuard - Phishing Detector",
+  "version": "1.0.0",
+  "description": "AI-powered phishing URL analyzer",
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "PhishGuard"
+  },
+  "permissions": ["activeTab", "storage"],
+  "host_permissions": ["http://localhost:5000/*", "http://localhost:5000/api/*"]
+}
