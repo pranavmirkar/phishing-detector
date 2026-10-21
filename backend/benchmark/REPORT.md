@@ -9,10 +9,10 @@ Positive class = phishing. An email is flagged when its risk score is at or abov
 | Operating point | Threshold | Accuracy | Balanced acc. | Precision | Recall | Specificity | F1 |
 |---|---|---|---|---|---|---|---|
 | MEDIUM or HIGH flagged | 25 | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% |
-| HIGH only flagged | 55 | 98.0% | 98.4% | 100.0% | 96.9% | 100.0% | 98.4% |
+| HIGH only flagged | 55 | 97.1% | 97.7% | 100.0% | 95.3% | 100.0% | 97.6% |
 
 Confusion matrix, MEDIUM or HIGH flagged: TP=193 FP=0 TN=113 FN=0  
-Confusion matrix, HIGH only flagged: TP=187 FP=0 TN=113 FN=6  
+Confusion matrix, HIGH only flagged: TP=184 FP=0 TN=113 FN=9  
 
 ## Held-out validation
 
@@ -20,8 +20,8 @@ The dataset was split 70/30 (stratified, seed 7). The score threshold was chosen
 
 | Set | Threshold | Accuracy | Balanced acc. | Precision | Recall | Specificity | F1 |
 |---|---|---|---|---|---|---|---|
-| Development | 45 | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% |
-| Test (held out) | 45 | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% |
+| Development | 35 | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% |
+| Test (held out) | 35 | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% |
 | Test at default MEDIUM cut-off | 25 | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% | 100.0% |
 
 ## Per-category results (flagged at MEDIUM or above)
@@ -39,16 +39,16 @@ The dataset was split 70/30 (stratified, seed 7). The score threshold was chosen
 | phishing | bec_freemail_text_only | 12 | 12 | 100.0% | 61 |
 | phishing | brand_hyphen | 22 | 22 | 100.0% | 100 |
 | phishing | homoglyph_unicode | 21 | 21 | 100.0% | 100 |
-| phishing | reply_to_spoof | 12 | 12 | 100.0% | 98 |
-| phishing | spoofed_trusted_from | 12 | 12 | 100.0% | 58 |
+| phishing | reply_to_spoof | 12 | 12 | 100.0% | 99 |
+| phishing | spoofed_trusted_from | 12 | 12 | 100.0% | 88 |
 | phishing | subdomain_abuse | 22 | 22 | 100.0% | 100 |
 | phishing | tld_swap | 21 | 21 | 100.0% | 100 |
 | phishing | typo_delete | 6 | 6 | 100.0% | 100 |
-| phishing | typo_digit | 22 | 22 | 100.0% | 99 |
+| phishing | typo_digit | 22 | 22 | 100.0% | 100 |
 | phishing | typo_insert | 10 | 10 | 100.0% | 100 |
 | phishing | typo_swap | 9 | 9 | 100.0% | 100 |
 | phishing | unknown_domain_link_mismatch | 12 | 12 | 100.0% | 100 |
-| phishing | unknown_domain_text_only | 12 | 12 | 100.0% | 53 |
+| phishing | unknown_domain_text_only | 12 | 12 | 100.0% | 50 |
 
 ## Threshold sweep
 
@@ -61,19 +61,19 @@ The dataset was split 70/30 (stratified, seed 7). The score threshold was chosen
 | 25 | 100.0% | 100.0% | 0.0% | 100.0% | 100.0% |
 | 30 | 100.0% | 100.0% | 0.0% | 100.0% | 100.0% |
 | 35 | 100.0% | 100.0% | 0.0% | 100.0% | 100.0% |
-| 40 | 100.0% | 100.0% | 0.0% | 100.0% | 100.0% |
-| 45 | 100.0% | 100.0% | 0.0% | 100.0% | 100.0% |
-| 50 | 100.0% | 96.9% | 0.0% | 98.4% | 98.0% |
-| 55 | 100.0% | 96.9% | 0.0% | 98.4% | 98.0% |
-| 60 | 100.0% | 87.0% | 0.0% | 93.1% | 91.8% |
-| 65 | 100.0% | 82.9% | 0.0% | 90.7% | 89.2% |
-| 70 | 100.0% | 82.9% | 0.0% | 90.7% | 89.2% |
-| 75 | 100.0% | 82.9% | 0.0% | 90.7% | 89.2% |
-| 80 | 100.0% | 82.9% | 0.0% | 90.7% | 89.2% |
-| 85 | 100.0% | 80.3% | 0.0% | 89.1% | 87.6% |
-| 90 | 100.0% | 80.3% | 0.0% | 89.1% | 87.6% |
-| 95 | 100.0% | 79.8% | 0.0% | 88.8% | 87.3% |
-| 100 | 100.0% | 79.8% | 0.0% | 88.8% | 87.3% |
+| 40 | 100.0% | 99.5% | 0.0% | 99.7% | 99.7% |
+| 45 | 100.0% | 99.5% | 0.0% | 99.7% | 99.7% |
+| 50 | 100.0% | 95.3% | 0.0% | 97.6% | 97.1% |
+| 55 | 100.0% | 95.3% | 0.0% | 97.6% | 97.1% |
+| 60 | 100.0% | 92.2% | 0.0% | 96.0% | 95.1% |
+| 65 | 100.0% | 89.1% | 0.0% | 94.2% | 93.1% |
+| 70 | 100.0% | 89.1% | 0.0% | 94.2% | 93.1% |
+| 75 | 100.0% | 89.1% | 0.0% | 94.2% | 93.1% |
+| 80 | 100.0% | 89.1% | 0.0% | 94.2% | 93.1% |
+| 85 | 100.0% | 87.6% | 0.0% | 93.4% | 92.2% |
+| 90 | 100.0% | 81.9% | 0.0% | 90.0% | 88.6% |
+| 95 | 100.0% | 80.8% | 0.0% | 89.4% | 87.9% |
+| 100 | 100.0% | 80.3% | 0.0% | 89.1% | 87.6% |
 
 ## Misclassified samples at MEDIUM or above (0)
 

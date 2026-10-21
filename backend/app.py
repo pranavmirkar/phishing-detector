@@ -1,8 +1,10 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import sqlite3, json, logging, re
-from datetime import datetime
+import sqlite3, json, logging, os, re, threading, time
+from collections import defaultdict, deque
+from datetime import datetime, timezone
 from detector import PhishingDetector
+from emailparse import parse_raw
 from benchmark_service import bp as benchmarks_bp
 from domain_intel import (
     init_intel_tables,
@@ -10,6 +12,7 @@ from domain_intel import (
     update_tranco_async,
     get_intel_status,
     check_domain_age,
+    DB_PATH,
 )
 
 logging.basicConfig(
@@ -18,11 +21,85 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
+# ── Configuration (environment variables; every one is optional) ──────────────
+#   PG_DB             SQLite file                         (default: backend/phishing.db)
+#   PG_CORS_ORIGINS   comma-separated allowed web origins (default: local dev servers)
+#   PG_API_KEY        if set, /api/* needs the header  X-API-Key: <value>
+#   PG_RATE_LIMIT     analyses per minute per client, 0 = off   (default 120)
+#   PG_STORE_CONTENT  0 = never store message bodies in history  (default 1)
+#   PG_OWN_DOMAINS    your organisation's domains, e.g. "example.com,example.org" (enables org-impersonation checks)
+#   PG_TRUST_PROXY    1 = trust X-Forwarded-For from one proxy (set in Docker / behind nginx)
+#   PG_HOST / PG_PORT / PG_DEBUG   for `python app.py` (default 127.0.0.1:5000, debug off)
+def _env_list(name, default=""):
+    return [x.strip() for x in os.environ.get(name, default).split(",") if x.strip()]
+
+
+API_KEY       = os.environ.get("PG_API_KEY", "")
+RATE_LIMIT    = int(os.environ.get("PG_RATE_LIMIT", "120"))
+STORE_CONTENT = os.environ.get("PG_STORE_CONTENT", "1") != "0"
+OWN_DOMAINS   = _env_list("PG_OWN_DOMAINS")
+
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024      # custom benchmark uploads
-CORS(app, origins=["http://localhost:3000", "http://localhost:5173"])
+if os.environ.get("PG_TRUST_PROXY") == "1":          # behind nginx / a load balancer: use the real client IP
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
+app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024      # custom benchmark uploads / raw emails
+CORS(app, origins=_env_list("PG_CORS_ORIGINS", "http://localhost:3000,http://localhost:5173"))
 app.register_blueprint(benchmarks_bp)
-DB = "phishing.db"
+DB = DB_PATH
+
+_hits = defaultdict(deque)
+_hits_lock = threading.Lock()
+
+
+@app.before_request
+def _guard():
+    if request.method == "OPTIONS" or not request.path.startswith("/api/") or request.path == "/api/health":
+        return None
+    if API_KEY and request.headers.get("X-API-Key", "") != API_KEY:
+        return jsonify({"error": "invalid or missing API key"}), 401
+    if RATE_LIMIT and request.method == "POST" and request.path in ("/api/analyze", "/api/parse"):
+        now = time.time()
+        key = request.remote_addr or "?"
+        with _hits_lock:
+            q = _hits[key]
+            while q and now - q[0] > 60:
+                q.popleft()
+            if len(q) >= RATE_LIMIT:
+                return jsonify({"error": "rate limit exceeded, try again shortly"}), 429
+            q.append(now)
+    return None
+
+
+@app.after_request
+def _headers(resp):
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("Cache-Control", "no-store")
+    return resp
+
+
+@app.errorhandler(413)
+def _too_large(_):
+    return jsonify({"error": "request too large"}), 413
+
+
+def _clean_extras(data):
+    """Optional header-derived fields from the client, coerced to safe types and sizes."""
+    atts = []
+    for a in (data.get("attachments") or [])[:25]:
+        if isinstance(a, dict):
+            atts.append({"filename": str(a.get("filename", ""))[:200], "type": str(a.get("type", ""))[:80]})
+        elif isinstance(a, str):
+            atts.append({"filename": a[:200], "type": ""})
+    return {
+        "reply_to":     str(data.get("reply_to") or "")[:500],
+        "auth_results": str(data.get("auth_results") or "")[:500] if not isinstance(data.get("auth_results"), dict) else data["auth_results"],
+        "return_path":  str(data.get("return_path") or "")[:500],
+        "recipient":    str(data.get("recipient") or "")[:320],
+        "attachments":  atts,
+        "list_id":      bool(data.get("list_id")),
+        "own_domains":  OWN_DOMAINS,
+    }
 
 EMAIL_RE = re.compile(r'.+@[\w.\-]+\.\w+')
 MAX_FIELD = 5_000
@@ -103,7 +180,8 @@ def analyze():
         return jsonify({"error": "sender too long"}), 400
 
     data["subject"] = (data.get("subject") or "")[:MAX_FIELD]
-    data["content"] = (data.get("content") or "")[:MAX_FIELD * 2]
+    data["content"] = (data.get("content") or "")[:MAX_FIELD * 12]
+    data.update(_clean_extras(data))
 
     try:
         result = PhishingDetector().analyze(data)
@@ -116,17 +194,30 @@ def analyze():
         "INSERT INTO emails (sender,subject,content,domain,risk_score,risk_level,warnings,analysis,timestamp)"
         " VALUES (?,?,?,?,?,?,?,?,?)",
         (
-            data.get("sender"), data.get("subject", ""), data.get("content", ""),
+            data.get("sender"), data.get("subject", ""), (data.get("content", "") if STORE_CONTENT else ""),
             result["domain"], result["risk_score"], result["risk_level"],
             json.dumps(result["warnings"]),
             json.dumps(result["domain_analysis"], default=str),
-            datetime.utcnow().isoformat(),
+            datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         ),
     )
     result["id"] = cur.lastrowid
     conn.commit()
     conn.close()
     return jsonify(result)
+
+
+@app.route("/api/parse", methods=["POST"])
+def parse():
+    """Parse a raw RFC 822 message (an .eml file or 'show original' text) into analyzable fields."""
+    data = request.get_json(silent=True) or {}
+    raw = data.get("raw")
+    if not isinstance(raw, str) or not raw.strip():
+        return jsonify({"error": "raw (the full message including headers) is required"}), 400
+    try:
+        return jsonify(parse_raw(raw))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
 
 @app.route("/api/emails", methods=["GET"])
@@ -171,7 +262,7 @@ def report():
         return jsonify({"error": "email not found"}), 404
     conn.execute(
         "INSERT INTO reports (email_id,reason,timestamp) VALUES (?,?,?)",
-        (email_id, (data.get("reason") or "")[:500], datetime.utcnow().isoformat()),
+        (email_id, (data.get("reason") or "")[:500], datetime.now(timezone.utc).replace(tzinfo=None).isoformat()),
     )
     conn.commit()
     conn.close()
@@ -268,18 +359,24 @@ def intel_whois():
 
 # ── Startup ───────────────────────────────────────────────────────────────────
 
-if __name__ == "__main__":
+def bootstrap():
+    """Create tables and make sure the trusted-domain list exists. Safe to call repeatedly."""
     init_db()
     init_intel_tables()
-
     if needs_update():
-        print("  Tranco list missing or stale — downloading in background...")
+        log.info("Tranco list missing or stale - downloading in background")
         update_tranco_async()
     else:
-        status = get_intel_status()
-        print(f"  Tranco: {status['domain_count']:,} trusted domains loaded")
+        log.info("Tranco: %s trusted domains loaded", f"{get_intel_status()['domain_count']:,}")
 
-    print("\n  PhishGuard API   : http://localhost:5000")
-    print("  Tranco status    : GET  /api/intel/status")
-    print("  Force update     : POST /api/intel/update\n")
-    app.run(debug=True, port=5000, use_reloader=False)
+
+# Under gunicorn / Docker there is no __main__, so bootstrap on import (tests opt out).
+if not os.environ.get("PG_NO_BOOTSTRAP"):
+    bootstrap()
+
+
+if __name__ == "__main__":
+    host, port = os.environ.get("PG_HOST", "127.0.0.1"), int(os.environ.get("PG_PORT", "5000"))
+    print(f"\n  PhishGuard API : http://{host}:{port}")
+    print("  Status         : GET /api/intel/status\n")
+    app.run(host=host, port=port, debug=os.environ.get("PG_DEBUG") == "1", use_reloader=False)

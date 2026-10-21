@@ -30,3 +30,21 @@ jobs:
         working-directory: frontend
       - run: npm run build
         working-directory: frontend
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose build
+      - run: docker compose up -d
+      - name: Smoke-test the running stack
+        run: |
+          for i in $(seq 1 40); do curl -fs http://localhost:8080/api/health && break; sleep 3; done
+          curl -fs http://localhost:8080/api/health
+          curl -fs -X POST http://localhost:8080/api/analyze -H 'Content-Type: application/json'             -d '{"sender":"support@paypa1.com","subject":"Verify your account","content":"sign in now"}' -o /tmp/r.json
+          python3 -c "import json; r = json.load(open('/tmp/r.json')); assert r['risk_score'] in ('MEDIUM', 'HIGH'), r"
+          curl -fs http://localhost:8080/ | grep -q 'id="root"'
+      - if: failure()
+        run: docker compose logs
+      - if: always()
+        run: docker compose down -v

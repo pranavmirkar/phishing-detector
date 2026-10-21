@@ -2,58 +2,61 @@
 
 # PhishGuard
 
-**Explainable phishing-email detection: a rule-based engine, a Flask API, a React dashboard with a built-in benchmark suite, and a Gmail extension.**
+**Explainable phishing-email detection: a rule-based engine, a hardened Flask API, a React dashboard with a built-in benchmark suite, and a Gmail extension.**
 
 [![CI](https://github.com/pranavmirkar/phishing-detector/actions/workflows/ci.yml/badge.svg)](https://github.com/pranavmirkar/phishing-detector/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/flask-3.0-000000?logo=flask&logoColor=white)
 ![React](https://img.shields.io/badge/react-18-61DAFB?logo=react&logoColor=black)
-![Tests](https://img.shields.io/badge/tests-46%20passing-2ea043)
+![Docker](https://img.shields.io/badge/docker-compose-2496ED?logo=docker&logoColor=white)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 <img src="docs/screenshots/dashboard-dark.png" alt="PhishGuard dashboard (dark theme)" width="900">
 
 </div>
 
-PhishGuard scores an email from its sender, reply-to, subject and body, and **shows its reasoning**: every verdict is a
-list of findings (lookalike domain, deceptive link, brand impersonation, ...) with the evidence behind each one, plus the
-Levenshtein edit-distance working for domain comparisons. There is no black box and no external AI service: the
-detector is deterministic, runs offline, and is measured against both synthetic and real public email corpora.
+PhishGuard scores an email and **shows its reasoning**: every verdict is a list of findings (lookalike domain, forged
+sender, failed authentication, deceptive link, risky attachment, ...) with the evidence behind each one. It reads
+ordinary pasted fields or a **raw `.eml` message with headers**, runs offline and deterministically, keeps your mail on
+your machine, and is benchmarked on real public phishing from 2015 to 2025, not only on data it was written against.
 
-> **Status:** a university project that has grown into a small, tested tool. Read [Accuracy](#accuracy) and
-> [Limitations](#limitations) before relying on any number in this README.
+> **Honest status.** On a locked, time-held-out test of 2023-2025 phishing, PhishGuard catches **72%** of phishing
+> and wrongly flags **2.7%** of the legitimate mail in that test. That is a useful *"take a second look"* assistant,
+> far better than where this project started, and **not** a replacement for a commercial email-security gateway.
+> The [accuracy section](#accuracy) has the full picture, including what is still bad.
 
 ## Contents
 
-- [Features](#features) · [Screenshots](#screenshots) · [How it works](#how-it-works)
-- [Quick start](#quick-start) · [API](#api) · [Benchmarks tab](#benchmarks-tab)
-- [Accuracy](#accuracy) · [Limitations](#limitations)
-- [Project structure](#project-structure) · [Development](#development) · [Roadmap](#roadmap) · [Acknowledgements](#acknowledgements) · [License](#license)
+[Features](#features) · [Screenshots](#screenshots) · [How it works](#how-it-works) · [Quick start](#quick-start) ·
+[Using it with real mail](#using-it-with-real-mail) · [Configuration](#configuration) · [Deployment](#deployment) ·
+[API](#api) · [Benchmarks tab](#benchmarks-tab) · [Accuracy](#accuracy) · [Limitations](#limitations) ·
+[Development](#development) · [Roadmap](#roadmap) · [Acknowledgements](#acknowledgements) · [License](#license)
 
 ## Features
 
 | Layer | What it catches |
 |---|---|
-| **Sender domain** | Lookalikes by edit distance (typos, swapped letters, digit substitutions), look-alike characters (Cyrillic, `rn`→`m`), punycode/IDN, brand names used in domains the brand does not own (`paypal-secure.com`, `paypal.xyz`), brands hidden in subdomains, throw-away TLDs, account/security words in the name |
-| **Sender identity** | Free-mail providers are **never** treated as trusted; display names or mailbox names claiming a brand (`"PayPal Support" <x@gmail.com>`, `"Amazon.com" <x@some-isp.net>`) |
-| **Content** | Account-takeover wording (a threat + a requested action + a deadline), fake IT/webmail-administrator lures, payment-redirection and advance-fee wording, a brand named in the text that does not match the sender |
-| **Links** | Visible URL vs real destination (compared by *registrable domain*, so `click.nytimes.com` and `nytimes.com` match), URL shorteners, raw IPs, punycode, unrelated destinations in automated brand mail |
-| **Headers** | `Reply-To` pointing somewhere unrelated; optional SPF / DKIM / DMARC results from an `Authentication-Results` header |
+| **Sender domain** | Lookalikes by edit distance (typos, swaps, digits), look-alike characters (Cyrillic, `rn`→`m`), punycode, brand names in domains the brand does not own (`paypal-secure.com`), brands hidden in subdomains, throw-away TLDs, credential words in the name |
+| **Sender identity** | Free-mail is never "trusted"; display names claiming a brand (`"PayPal Support" <x@gmail.com>`, `"DHL International" <x@some-ministry.gov>`); your own organisation's name used by an outsider |
+| **Headers** (raw `.eml`) | SPF / DKIM / DMARC results from the receiving server's `Authentication-Results`, envelope sender (`Return-Path`) that contradicts a brand `From`, `Reply-To` hijack, own-domain forgery that fails authentication. Spam-filter verdicts (`X-Spam-*`) are deliberately ignored |
+| **Content** | Account-takeover wording (threat + action + deadline), fake IT / webmail-admin lures, document-share and "pending mail" lures, payment-problem lures, payment-redirection (BEC) and advance-fee wording, text disguised with look-alike letters |
+| **Links** | Visible URL vs real destination (by registrable domain), mail that claims a brand but never links to it, free-hosting platforms used for fake logins, shorteners, raw IPs |
+| **Attachments** | HTML attachments, executables and scripts, double extensions, archives from unverified senders (names only; attachments are never opened) |
+| **Forms** | Password / card fields inside the message body |
 | **Domain age** | WHOIS registration age, cached for 24 h |
-| **Spam signals** | Keyword density, ALL-CAPS and exclamation-mark subjects, bulk-mail patterns, URL density (discounted for verified senders) |
 
-Also included: a light/dark dashboard, scan history, an educational page on attack patterns, an interactive
-Levenshtein matrix, a one-click **Benchmarks** tab, 46 automated tests, and CI on every push.
+Plus: light/dark dashboard, scan history, an interactive Levenshtein matrix, a one-click **Benchmarks** tab, API-key
+auth, rate limiting, optional "do not store message bodies" mode, Docker packaging, and an automated test suite.
 
 ## Screenshots
 
 <table>
 <tr>
-<td width="50%"><img src="docs/screenshots/analyze-dark.png" alt="Analyze: a flagged email with evidence and the Levenshtein matrix"><br><sub><b>Analyze</b> — a flagged email, its evidence and the edit-distance matrix</sub></td>
-<td width="50%"><img src="docs/screenshots/benchmarks-dark.png" alt="Benchmarks tab on real public email corpora"><br><sub><b>Benchmarks</b> — real public corpora, confusion matrix, cut-off sweep</sub></td>
+<td width="50%"><img src="docs/screenshots/analyze-dark.png" alt="Analyze: an imported .eml with header evidence"><br><sub><b>Analyze</b> — an imported raw .eml: authentication failure, envelope mismatch, risky attachment, plus the edit-distance working</sub></td>
+<td width="50%"><img src="docs/screenshots/benchmarks-dark.png" alt="Benchmarks tab: real-world view on the locked 2023-2025 test"><br><sub><b>Benchmarks</b> — real-world view with confidence intervals on the locked 2023-2025 test</sub></td>
 </tr>
 <tr>
-<td colspan="2"><img src="docs/screenshots/dashboard-light.png" alt="Dashboard in light theme"><br><sub><b>Dashboard</b> — light theme (dark theme above)</sub></td>
+<td colspan="2"><img src="docs/screenshots/dashboard-light.png" alt="Dashboard in light theme"><br><sub><b>Dashboard</b> — light theme</sub></td>
 </tr>
 </table>
 
@@ -66,60 +69,94 @@ flowchart LR
       EXT[Gmail extension]
     end
     subgraph Backend [Flask backend]
-      API[REST API]
+      API[REST API<br/>auth, rate limit]
+      PARSE[emailparse<br/>.eml to fields]
       DET[PhishingDetector]
       BM[Benchmark service]
     end
     DB[(SQLite: history, Tranco top-50K, WHOIS cache)]
     UI --> API
+    API --> PARSE --> DET
     API --> DET
-    API --> BM
-    BM --> DET
+    API --> BM --> DET
     DET --> DB
     DET -.->|WHOIS| NET((Internet))
     BM -.->|on request| CORP[(Public corpora)]
 ```
 
-1. **Parse** the sender into display name, mailbox and registrable domain (aware of suffixes such as `co.uk`).
-2. **Establish identity.** A domain is *trusted* only if it is in the Tranco top-50K list and is not a free-mail provider.
-   Trust is never inherited by look-alike characters: only the original, un-normalised domain can earn it.
-3. **Compare** untrusted domains with the top-1K domains plus a curated list of 80 frequently phished brands
-   (banks, couriers, payment services) using Levenshtein distance. Adjacent swaps count as one edit, and a 2-edit
-   match needs a high similarity so that `t-online.de` vs `f1online.de` is not a verdict.
-4. **Score** each signal with a fixed weight; the total is capped at 100 and mapped to **LOW** (< 25),
-   **MEDIUM** (25-54) or **HIGH** (>= 55). Spam signals add a small, separately weighted amount.
-5. **Explain.** The API returns every finding with a severity, message and detail, and the matrix/edit operations
-   for the closest trusted domain.
+1. **Parse.** A raw message becomes sender, reply-to, subject, body (HTML kept for links and forms), the
+   *topmost* `Authentication-Results` (the receiving server's; lower ones can be forged), envelope sender, attachment
+   names and recipient.
+2. **Establish identity.** A domain is *trusted* only if it is in the Tranco top-50K and is not a free-mail provider.
+   Trust is never inherited by look-alike characters.
+3. **Compare** with the top-1K domains plus 80 curated, frequently phished brands (banks, couriers, payments).
+4. **Score** each signal with a fixed weight, capped at 100: **LOW** (< 25), **MEDIUM** (25-54), **HIGH** (>= 55).
+   Spam-looking mail alone can never reach MEDIUM: a message needs at least one phishing-specific indicator.
+5. **Explain.** Every finding carries a severity, message and detail.
 
-Brand, free-mail and TLD data live in [`backend/brands.py`](backend/brands.py) so they can be reviewed and extended
-without touching scoring logic; the scoring itself is in [`backend/detector.py`](backend/detector.py).
+Brand, free-mail and TLD data live in [`backend/brands.py`](backend/brands.py); scoring is in
+[`backend/detector.py`](backend/detector.py); raw-message parsing is in [`backend/emailparse.py`](backend/emailparse.py).
 
 ## Quick start
 
-**Requirements:** Python 3.10+, Node 18+.
+**Requirements:** Python 3.10+ and Node 18+ (or just Docker, see [Deployment](#deployment)).
 
 ```bash
 git clone https://github.com/pranavmirkar/phishing-detector.git
 cd phishing-detector
 
-# 1. Backend  ->  http://localhost:5000
-cd backend
-pip install -r requirements.txt
-python app.py          # first start downloads the Tranco list (~50K domains) in the background
+# 1. Backend  ->  http://localhost:5000   (works from any directory)
+pip install -r backend/requirements.txt
+python backend/app.py            # first start downloads the Tranco list (~50K domains) in the background
 
-# 2. Frontend ->  http://localhost:3000   (in a second terminal)
-cd frontend
-npm install
-npm run dev
+# 2. Frontend ->  http://localhost:3000   (second terminal)
+cd frontend && npm install && npm run dev
 ```
 
-Run the backend from inside `backend/` (it opens `phishing.db` relative to the working directory).
+## Using it with real mail
 
-### Gmail extension
+1. In Gmail open a message, **⋮ → Show original → Download original** (or save any `.eml` from your mail client).
+2. Open the **Analyze** tab and click **Import .eml**. Sender, reply-to, subject and body fill in, and the header
+   evidence (authentication, envelope sender, attachments, recipient) is shown and sent with the analysis.
+3. Click **Analyze**. Try [`docs/samples/forged-paypal.eml`](docs/samples/forged-paypal.eml), a forged PayPal message with
+   failed SPF/DMARC, a mismatched envelope sender and an HTML attachment.
 
-`extension/` is a Manifest V3 Chrome extension that analyses senders inside Gmail. Open `chrome://extensions`,
-enable *Developer mode*, choose **Load unpacked** and select the `extension/` folder. It runs entirely in the browser
-with its own bundled copy of the trusted-domain list; it does not call the backend (see [Limitations](#limitations)).
+Set `PG_OWN_DOMAINS` to your organisation's domain(s) to catch outsiders who name your organisation in a display name
+or forge your own domain, a favourite trick of mail-merged lures (see the ablation under [Accuracy](#accuracy)).
+
+For automation, `POST /api/parse` turns raw text into fields and `POST /api/analyze` scores them.
+
+## Configuration
+
+All optional environment variables:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PG_DB` | `backend/phishing.db` | SQLite file (history, trusted-domain list, WHOIS cache) |
+| `PG_API_KEY` | *(none)* | If set, every `/api/*` call except `/api/health` needs `X-API-Key: <value>` |
+| `PG_RATE_LIMIT` | `120` | Analyses per minute per client (`0` = off) |
+| `PG_STORE_CONTENT` | `1` | `0` = never keep message bodies in history |
+| `PG_OWN_DOMAINS` | *(none)* | Your organisation's domains, e.g. `example.com,example.org` |
+| `PG_CORS_ORIGINS` | local dev servers | Comma-separated allowed web origins |
+| `PG_TRUST_PROXY` | `0` | `1` behind nginx / a load balancer, so rate limits use the real client IP |
+| `PG_HOST` / `PG_PORT` | `127.0.0.1` / `5000` | Bind address for `python app.py`. Debug mode is off unless `PG_DEBUG=1` |
+
+## Deployment
+
+```bash
+docker compose up --build        # web UI + API at http://localhost:8080
+```
+
+The compose file runs the backend under gunicorn as a non-root user with a persistent volume for the database and
+downloaded benchmark data, and serves the built frontend through nginx, which proxies `/api`. Pass the variables above
+through the environment, for example `PG_OWN_DOMAINS=example.com docker compose up --build`.
+
+CI builds both images, starts the stack and smoke-tests it on every push (see `.github/workflows/ci.yml`). The images
+have not been built on the author's machine (Docker was not running there), so treat the CI run as the verification.
+
+**Privacy.** Everything runs on your machine or server. Message bodies are stored in the history table only when
+`PG_STORE_CONTENT=1`; WHOIS lookups send only the sender's domain name to WHOIS servers; benchmark corpora are
+downloaded on request from their original sites and never uploaded anywhere.
 
 ## API
 
@@ -128,163 +165,195 @@ Base URL `http://localhost:5000/api`.
 | Method | Endpoint | Purpose |
 |---|---|---|
 | `POST` | `/analyze` | Score one email and store it in history |
-| `GET` | `/emails`, `/emails/<id>` | Scan history / one scan with full analysis |
+| `POST` | `/parse` | Parse a raw RFC 822 message (`{"raw": "..."}`) into analyzable fields |
+| `GET` | `/emails`, `/emails/<id>` | History / one scan with full analysis |
 | `POST` | `/report` | Mark a scan as reported phishing |
 | `GET` | `/stats` | Totals, 7-day trend, detections by type, intel status |
 | `POST` | `/matrix` | Levenshtein matrix and edit operations for two strings |
 | `GET` / `POST` | `/intel/status`, `/intel/update`, `/intel/whois` | Trusted-domain list status / refresh, WHOIS lookup |
+| `GET` | `/health` | Liveness probe (never needs the API key) |
 | `GET`, `POST`, `DELETE` | `/benchmarks/...` | [Benchmark service](#benchmarks-tab) |
 
 ```bash
-curl -s -X POST http://localhost:5000/api/analyze \
-  -H "Content-Type: application/json" \
-  -d '{
-        "sender": "support@paypa1.com",
-        "reply_to": "reply@protonmail.com",
-        "subject": "Urgent: your PayPal account has been suspended",
-        "content": "Verify your account: <a href=\"http://paypa1.com/v\">https://paypal.com/verify</a>",
-        "auth_results": "spf=fail dkim=none dmarc=fail"
-      }'
+curl -s -X POST http://localhost:5000/api/analyze -H "Content-Type: application/json" -d '{
+  "sender": "service@paypal.com",
+  "reply_to": "help@account-help-center.top",
+  "subject": "Your PayPal account has been limited",
+  "content": "<a href=\"http://account-help-center.top/signin\">https://www.paypal.com/signin</a>",
+  "auth_results": "spf=fail dmarc=fail",
+  "return_path": "bounce@mailer-dispatch.xyz",
+  "attachments": [{"filename": "Statement.html"}]
+}'
 ```
 
-`reply_to` and `auth_results` (a header string or an object such as `{"spf": "pass"}`) are optional. The response
-contains `risk_score` (`LOW`/`MEDIUM`/`HIGH`), `risk_level` (0-100), the `warnings` list, and `domain_analysis`
-(normalised form, nearest trusted domains, matrix, edit operations).
+Only `sender` is required. Optional header-derived fields: `reply_to`, `auth_results` (string or object), `return_path`,
+`recipient`, `attachments`, `list_id`. The response has `risk_score` (`LOW`/`MEDIUM`/`HIGH`), `risk_level` (0-100), the
+`warnings` list and `domain_analysis`.
 
 ## Benchmarks tab
 
-The dashboard's **Benchmarks** tab runs the detector on labelled emails and reports accuracy, precision, recall, F1,
-ROC AUC, a confusion matrix, a cut-off sweep, per-category results and every misclassified email.
+The **Benchmarks** tab runs the detector on labelled emails and shows accuracy, precision, recall, F1, ROC AUC,
+**false alarms per 1,000 legitimate emails with 95% intervals**, precision at realistic phishing rates, recall at fixed
+false-alarm budgets, a confusion matrix, a cut-off sweep, per-source results, a readiness table, latency and every
+misclassified email.
 
 | Source | Details |
 |---|---|
-| **Private datasets** | Two bundled synthetic sets (306 and 258 emails) in `backend/benchmark/` |
-| **Real public datasets** | [Nazario's phishing corpus](https://monkey.org/~jose/phishing/) and the [SpamAssassin public corpus](https://spamassassin.apache.org/old/publiccorpus/). Downloaded on request (one click, ~12 MB, fixed URLs) into the git-ignored `backend/benchmark/data/`; never redistributed. Choose the test half, dev half or all, and the number of emails per class |
-| **Your own file** | Upload `.jsonl`, `.json` or `.csv` with `label` (`phishing`/`legit`), `sender`, `subject`, `content` and optionally `reply_to`, `category`. Up to 2,000 rows, processed in memory and not stored |
+| **Private datasets** | Two bundled synthetic sets (306 and 258 emails) |
+| **Real public datasets** | Download on request (one click per group, fixed URLs, never redistributed) into git-ignored storage. *Core* (~10 MB) and *Recent* (~85 MB). Choose the **Test** split (2023-2025 phishing), **Dev** split (2015-2022) or both |
+| **Your own file** | `.jsonl` / `.json` / `.csv` with `label` (`phishing`/`legit`), `sender`, `subject`, `content` and optionally `reply_to`, `auth_results`, `return_path`, `recipient`, `category`. Up to 2,000 rows, processed in memory |
 
-Runs are background jobs (one at a time) using the same `PhishingDetector.analyze()` as `/api/analyze`, with WHOIS
-switched off so results are repeatable. Only sender domains, never message text, are kept from the public corpora.
-
-The same benchmarks are available from the command line:
+The same engine runs from the command line:
 
 ```bash
 cd backend
-python benchmark/run_benchmark.py                                          # bundled development set
-python benchmark/run_benchmark.py --dataset dataset_v2.jsonl --tag holdout # second set
-python -P benchmark/eval_real.py --phishing P.mbox --ham H.tar.bz2 --split test   # real corpora
+python benchmark/run_benchmark.py                          # bundled synthetic sets
+python -P benchmark/eval_real.py --split both              # real corpora: dev, then test at a dev-calibrated cut-off
+python -P benchmark/eval_real.py --split test --drop recipient,auth_results   # ablation: blank out signals
 ```
 
 ## Accuracy
 
-Positive class = phishing; an email is flagged when its score is MEDIUM or above (25+). "Before" is the first version
-of this project; "After" is the current detector.
+Positive class = phishing; an email is flagged at risk score >= 25 (MEDIUM+). **Always read these next to the
+[limitations](#limitations).**
 
-### Real public mail — the number to trust
+### The test that matters: recent real phishing, time-held-out
 
-Phishing from Nazario's corpus (2015) and legitimate mail from the SpamAssassin "easy ham" corpus. Neither was written
-by this project. Each corpus was split 50/50 by a hash of sender and subject; issues were diagnosed on the **dev** half
-and the figures below are from the **test** half (151 phishing, 400 legitimate).
-
-| Metric | Before | After |
+| Split | Phishing | Legitimate |
 |---|---|---|
-| Phishing caught (recall) | 43.0% | **75.5%** |
-| Legitimate mail wrongly flagged | 45.0% | **1.0%** |
-| Precision | 26.5% | **96.6%** |
-| F1 | 32.8% | **84.8%** |
-| Balanced accuracy | 49.0% | **87.2%** |
+| **Dev** (rules were diagnosed here) | Nazario 2015, 2018, 2019, 2022 | SpamAssassin ham and hard ham (dev half), Apache mailing lists 2025 (5 list-months) |
+| **Test** (locked; never inspected during tuning) | **Nazario 2023, 2024, 2025** | SpamAssassin ham and hard ham (test half), Apache mailing lists 2025 (5 other list-months) |
 
-Before the rewrite the detector was close to a coin flip on real mail. Most of the gain is fewer false alarms:
-free-mail was treated as trusted, any domain containing a digit or "cl" counted as a homoglyph attack, and newsletter
-tracking links counted as deceptive.
+600 phishing and 600 legitimate emails per split (seeded sample). The three detector versions below are the original
+project, the previous commit, and now:
+
+| Test split (2023-25 phishing) | Original | Previous | **Now** |
+|---|---|---|---|
+| Phishing caught (recall) | 34.2% | 50.7% | **72.3%** (95% CI 68.6-75.8) |
+| **False alarms per 1,000 legitimate emails** | 350 | 55 | **26.7** (16.5-42.9) |
+| Precision (balanced test set) | 49.4% | 90.2% | **96.4%** |
+| Precision if 1 email in 100 is phishing | 1.0% | 8.5% | **21.5%** |
+| HIGH-only: recall / false alarms per 1,000 | 4.2% / 40 | 21.2% / 15 | **44.7% / 8.3** |
+| Development split: recall / false alarms per 1,000 | 41.2% / 345 | 63.8% / 35 | **83.2% / 15.0** |
+
+Recall on the test split by year: **2023 80.1%**, **2024 78.3%**, **2025 61.1%**. The newest phishing is caught least,
+so expect further decay as attackers adapt.
+
+**Which signals carry the result** (test split; false alarms stay between 26.7 and 28.3 per 1,000 in every row):
+
+| Inputs available to the detector | Recall |
+|---|---|
+| Everything (full `.eml` and the recipient's domain) | 72.3% |
+| Without knowing the recipient's organisation | 61.0% |
+| Body, sender and subject only (no headers at all) | 55.8% |
+
+So most of the recent gain depends on real message headers and knowing whose mailbox it is, which is exactly what the
+`.eml` import and `PG_OWN_DOMAINS` provide. A tool that only sees pasted text is closer to 56%.
+
+**Strict cut-offs do not transfer perfectly.** A cut-off picked on dev for <= 0.5% false alarms (score 52) gave
+**46.5% recall and 13.3 false alarms per 1,000** on test: the false-alarm budget was missed by about 2.6x.
+
+### Is it real-world acceptable?
+
+The Benchmarks tab scores the detector against three project-defined tiers (these are this project's own targets, not
+an industry standard):
+
+| Tier | Target | Result on the test split |
+|---|---|---|
+| Warning assistant | >= 70% caught, <= 20 false alarms per 1,000 | Recall met (72.3%); **false alarms not met (26.7, interval 16.5-42.9)** |
+| Inbox filter | >= 90% caught, <= 1 false alarm per 1,000 | **Not met** |
+| Production gateway | >= 99% caught, <= 0.1 false alarms per 1,000 | **Not met** (roughly where commercial products operate) |
+
+**Bottom line:** use it as a second opinion that a person reviews: MEDIUM = "look twice", HIGH = "probably phishing"
+(98% precision on the balanced test set, but only 44.7% recall). Do not use it to hide or delete mail automatically.
 
 ### Synthetic sets
 
-Written by the project author, so high scores are expected and say less. They are useful as regression baselines.
+Written by the project author, so high scores are expected and say little. They are regression baselines.
 
-| Set | Before (accuracy) | After (accuracy / F1) | Notes |
-|---|---|---|---|
-| Development, 306 emails | 85.0% | 100% / 100% | Used to guide the fixes. **Not a real-world claim** |
-| Second set, 258 emails | 51.9% | 97.3% / 97.8% | Different seed, wording and brands, but the same author |
+| Set | Original (accuracy) | Now (accuracy / F1) |
+|---|---|---|
+| Development, 306 emails | 85.0% | 100% / 100% (used to guide fixes; not a real-world claim) |
+| Second set, 258 emails | 51.9% | 97.3% / 97.8% |
 
-Full tables, per-category results and misclassified messages:
-[`REPORT.md`](backend/benchmark/REPORT.md), [`REPORT_holdout.md`](backend/benchmark/REPORT_holdout.md) and the real-data
-aggregates in [`backend/benchmark/results_real_test.json`](backend/benchmark/results_real_test.json).
+Reports: [`REPORT.md`](backend/benchmark/REPORT.md), [`REPORT_holdout.md`](backend/benchmark/REPORT_holdout.md),
+[`results_real_test.json`](backend/benchmark/results_real_test.json), [`results_real_dev.json`](backend/benchmark/results_real_dev.json).
 
-### Method notes
+### Metric definitions
 
-- The test half was not used to *design* rules, but one later fix (generic host words such as `mail.` wrongly counted
-  as brands in subdomains) was prompted by an error seen on the test half. The test numbers are therefore very slightly
-  less independent than the rest.
-- Both real corpora contain near-duplicate campaigns (for example many lures for the same bank), which flatters
-  results somewhat.
-- An early dataset bug (a few generated "lookalikes" such as `google.org` are genuinely brand-owned) was found by the
-  benchmark and fixed in the dataset builders rather than hidden.
+- **False alarms per 1,000** = legitimate emails flagged per 1,000, with a 95% Wilson interval.
+- **Precision at 1% prevalence** = precision if only 1 in 100 emails were phishing. Balanced test sets overstate
+  precision: in a real inbox most flags would be false at this accuracy.
+- **Recall at a false-alarm budget** picks the cut-off on the data itself, so on one set it is optimistic; the dev to
+  test row above is the honest version.
 
 ## Limitations
 
-- **Forged mail from a brand's real address** (`billing@paypal.com`) with a clean body is invisible without
-  authentication headers. The API accepts `auth_results`, but the dashboard and extension do not send it yet. This
-  accounts for most of the phishing still missed on real data.
-- At the stricter **HIGH-only** cut-off, real-data recall is about 40%. HIGH has near-zero false alarms; MEDIUM is the
-  recommended "review this" level.
-- The real corpora are 2002-2015 era and mostly English. The detector only sees sender, subject and body: no
-  attachments, rendering, or sender reputation beyond domain age.
-- Legitimate newsletters sent via a different tracking domain are still occasionally flagged.
-- It is rule-based. The numbers describe these datasets, not future attacks, and attackers can adapt to known rules.
-- The **Gmail extension** has its own simpler JavaScript implementation and has not been updated to the new rules, so
-  none of the figures above apply to it.
-- Do not use this as the only line of defence. Treat it as a second opinion.
-
-## Project structure
-
-```
-backend/
-  app.py                  Flask API (analyze, history, stats, intel)
-  detector.py             Scoring engine
-  brands.py               Brand / free-mail / TLD threat data
-  domain_intel.py         Tranco list + WHOIS cache
-  levenshtein.py          Distance, DP matrix, edit operations
-  benchmark_service.py    /api/benchmarks blueprint (background jobs, downloads)
-  benchmark/              Datasets, builders, CLI runners, metrics, corpus readers, reports
-  tests/                  46 offline tests
-frontend/src/
-  pages/                  Dashboard, Analyze, History, Benchmarks, Attack patterns
-  components/ api/ theme.js
-extension/                Manifest V3 Gmail extension
-docs/screenshots/         README images
-.github/workflows/ci.yml  Tests + frontend build
-```
+- **Legitimate mail in the public corpora is narrow:** 2002-03 personal and list mail and 2025 developer mailing lists.
+  Marketing mail, receipts, corporate mail and newsletters are **not represented**, so the false-alarm rate on a real
+  inbox is unmeasured and probably higher. The hardest legitimate bucket we have (SpamAssassin "hard ham", mail that
+  looks like spam) is flagged 12.7% of the time.
+- **Authentication false alarms are unmeasured:** the legitimate corpora carry no SPF results, so wrongly flagged
+  forwarded or mailing-list mail cannot be counted. Attackers also usually pass their *own* SPF, so authentication
+  catches forged brands, not all phishing.
+- **Single-victim phishing corpus.** Nazario's phishing all targets one mailbox, which makes organisation-impersonation
+  look better than it will for diverse recipients (see the ablation). Near-duplicate campaigns flatter results slightly.
+- **Forged mail from a brand's real address with a clean body** and no authentication data is invisible. Mail with
+  no text (images, QR codes) cannot be read.
+- Recall falls on newer phishing (80% for 2023, 61% for 2025) and rules need continued maintenance.
+- WHOIS domain-age scoring is off in all benchmarks, so it is unmeasured.
+- The **Gmail extension** has its own older, simpler JavaScript implementation. None of the figures here apply to it.
+- Rule-based: figures describe these datasets, not future attacks.
 
 ## Development
 
 ```bash
-cd backend && pip install pytest && python -m pytest -q     # 46 tests, offline, < 2 s
-cd frontend && npm run build                                # production build
+cd backend && pip install pytest && python -m pytest -q      # offline, < 3 s
+cd frontend && npm run build
 ```
 
-Tests replace the trusted-domain list, lookalike pool and WHOIS with small fakes, so they need no network or database.
-CI runs the backend tests and a frontend build on every push and pull request.
+Tests replace the trusted-domain list, lookalike pool and WHOIS with small fakes and use a throw-away database, so they
+need no network. To extend detection: add brands to `backend/brands.py`, add a signal in `detector.py` with a test, then
+run `eval_real.py --split dev` and compare. Do **not** tune on the test split; if you do, say so next to the numbers.
 
-To extend detection, add brands to `backend/brands.py`, add a signal in `detector.py` with a test in
-`backend/tests/test_detector.py`, then run the benchmarks and compare with the tables above.
+```
+backend/
+  app.py                  API: auth, rate limit, analyze, parse, history, stats
+  detector.py             Scoring engine          emailparse.py   Raw .eml parser
+  brands.py               Brand / free-mail / TLD data
+  domain_intel.py         Tranco list + WHOIS cache (cached lookups)
+  benchmark_service.py    /api/benchmarks (jobs, downloads)
+  benchmark/              engine, metrics, corpora catalogue, CLI runners, datasets, reports
+  tests/                  detector, parser, API and benchmark tests
+frontend/src/             pages (Dashboard, Analyze, History, Benchmarks, Patterns), components, theme
+extension/                Manifest V3 Gmail extension (separate implementation)
+docs/                     screenshots, sample .eml
+docker-compose.yml        backend (gunicorn) + web (nginx)
+```
 
 ## Roadmap
 
-- Send `Authentication-Results` from the dashboard and extension; parse raw `.eml` upload
-- Port the new rules to the Gmail extension (or have it call the API)
-- Larger, more recent real-world evaluation set, including attachments and HTML-only mail
-- Per-signal weight calibration with a held-out set, and a confidence estimate on each verdict
+- Gmail extension that calls the API (so it gets the new rules and header data)
+- Per-signal weight calibration with a learned model on a larger, more diverse labelled set, and a calibrated probability
+- A modern consumer-mail legitimate set (newsletters, receipts), and image/QR-code lure detection
+- A feedback loop: user-confirmed phishing / false alarms stored and fed back into evaluation
 
 ## Acknowledgements
 
-- [Tranco](https://tranco-list.eu/): Le Pochat et al., *Tranco: A Research-Oriented Top Sites Ranking Hardened Against Manipulation*, NDSS 2019
-- Jose Nazario's [phishing corpus](https://monkey.org/~jose/phishing/) and the [Apache SpamAssassin public corpus](https://spamassassin.apache.org/old/publiccorpus/), used for evaluation only
-- [python-whois](https://pypi.org/project/python-whois/), [Flask](https://flask.palletsprojects.com/), [React](https://react.dev/), [Vite](https://vitejs.dev/), [Chart.js](https://www.chartjs.org/)
+- Phishing data: Jose Nazario, [phishing corpus](https://monkey.org/~jose/phishing/), licensed
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Used for evaluation only; not redistributed here.
+- Legitimate mail: [Apache SpamAssassin public corpus](https://spamassassin.apache.org/old/publiccorpus/) and
+  [Apache Software Foundation public mailing-list archives](https://lists.apache.org/). Downloaded on request for
+  evaluation only; only sender domains and aggregate statistics are kept.
+- [Tranco](https://tranco-list.eu/): Le Pochat et al., *Tranco: A Research-Oriented Top Sites Ranking Hardened Against
+  Manipulation*, NDSS 2019.
+- [python-whois](https://pypi.org/project/python-whois/), [Flask](https://flask.palletsprojects.com/), [React](https://react.dev/),
+  [Vite](https://vitejs.dev/), [Chart.js](https://www.chartjs.org/), [gunicorn](https://gunicorn.org/), [nginx](https://nginx.org/).
 
 ## License
 
-Released under the [MIT License](LICENSE). The public email corpora used for evaluation are not part of this
-repository and remain under their own terms.
+Released under the [MIT License](LICENSE). The public email corpora used for evaluation are not part of this repository
+and remain under their own terms.
 
 ## Disclaimer
 

@@ -2,38 +2,37 @@
 Benchmarks API (used by the dashboard's Benchmarks tab).
 
   GET    /api/benchmarks/datasets        what can be run + status of the public corpora
-  POST   /api/benchmarks/real/download   fetch the public corpora (fixed, reviewed URLs only)
+  POST   /api/benchmarks/real/download   fetch public corpora by group (fixed, reviewed URLs only)
   DELETE /api/benchmarks/real            remove the downloaded corpora
   POST   /api/benchmarks/run             start a benchmark job  -> {job_id}
   GET    /api/benchmarks/jobs/<id>       progress / result of a job
   GET    /api/benchmarks/results         most recent saved result per dataset
 
-Runs execute in a background thread, one at a time. They use the same
-PhishingDetector.analyze() as /api/analyze, with WHOIS switched off per instance
-(so live analysis is unaffected and results are repeatable).
+Runs execute in a background thread, one at a time, through the same engine as the command-line
+scripts (benchmark/engine.py) and the same PhishingDetector.analyze() as /api/analyze, with WHOIS
+switched off per instance so live analysis is unaffected and results are repeatable.
 Nothing from the public corpora is stored in results except sender domains.
 """
 import json
 import os
-import random
 import threading
 import time
 import urllib.request
 import uuid
-from collections import Counter, defaultdict
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 
 from detector import PhishingDetector
 from benchmark import corpora as C
-from benchmark import metrics as M
+from benchmark import engine
 
 bp = Blueprint("benchmarks", __name__, url_prefix="/api/benchmarks")
 
 BENCH_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "benchmark")
-DATA_DIR = os.path.join(BENCH_DIR, "data", "real")
-RUNS_DIR = os.path.join(BENCH_DIR, "runs")
+# Writable locations for downloaded corpora and saved runs (override in containers with a volume).
+DATA_DIR = os.environ.get("PG_BENCH_DATA") or os.path.join(BENCH_DIR, "data", "real")
+RUNS_DIR = os.environ.get("PG_BENCH_RUNS") or os.path.join(BENCH_DIR, "runs")
 
 PRIVATE = {
     "private_dev": {
@@ -47,17 +46,15 @@ PRIVATE = {
                        "before the rules were improved. Includes known-hard cases (forged brand sender, no other clue).",
     },
 }
-LIMITS = {"custom_max_rows": 2000, "real_min_n": 20, "real_max_n": 1000, "real_default_n": 200, "field_max": 12000}
-REAL_SEED = 11
-MAX_ERRORS = 60
+LIMITS = {"custom_max_rows": 2000, "real_min_n": 20, "real_max_n": 1500, "real_default_n": 400, "field_max": 60000}
 MAX_JOBS = 20
+CUSTOM_FIELDS = ("sender", "reply_to", "subject", "content", "auth_results", "return_path", "recipient")
 
 _lock = threading.Lock()
 _jobs = {}
-_download = {"state": "idle", "current": "", "done": 0, "total": 0, "error": ""}
+_download = {"state": "idle", "current": "", "done": 0, "total": 0, "file_index": 0, "file_count": 0, "error": ""}
 
 
-# ── helpers ───────────────────────────────────────────────────────────────────
 def _now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -88,31 +85,37 @@ def _private_info():
 
 
 def _real_files():
+    have = engine.present_sources(DATA_DIR)
     files = []
     for key, src in C.SOURCES.items():
-        path = os.path.join(DATA_DIR, src["file"])
-        size = os.path.getsize(path) if os.path.exists(path) else 0
-        files.append({"id": key, "name": src["name"], "url": src["page"], "present": size > 0,
-                      "bytes": size, "required": key != "spam"})
+        path = have.get(key)
+        files.append({"id": key, "name": src["name"], "url": src["page"], "present": bool(path),
+                      "bytes": os.path.getsize(path) if path else 0, "group": src["group"],
+                      "label": src["label"], "role": src["role"], "credit": src["credit"]})
     return files
 
 
-def _real_ready(include_spam=False):
-    need = {"phishing", "ham"} | ({"spam"} if include_spam else set())
-    return all(f["present"] for f in _real_files() if f["id"] in need)
+def _split_ready(split, include_spam=False):
+    """A split needs at least one phishing and one legitimate source on disk."""
+    have = engine.present_sources(DATA_DIR)
+    keys = [k for k in C.wanted(split) if k in have]
+    labels = {C.SOURCES[k]["label"] for k in keys}
+    return {"phishing", "legit"} <= labels and (not include_spam or "spam" in have)
 
 
 # ── public corpora download ───────────────────────────────────────────────────
 def _download_worker(keys):
     try:
         os.makedirs(DATA_DIR, exist_ok=True)
-        for key in keys:
+        todo = [k for k in keys if not (os.path.exists(os.path.join(DATA_DIR, C.SOURCES[k]["file"]))
+                                        and os.path.getsize(os.path.join(DATA_DIR, C.SOURCES[k]["file"])) > 0)]
+        with _lock:
+            _download.update(file_count=len(todo), file_index=0)
+        for i, key in enumerate(todo, 1):
             src = C.SOURCES[key]
             dest = os.path.join(DATA_DIR, src["file"])
-            if os.path.exists(dest) and os.path.getsize(dest) > 0:
-                continue
             with _lock:
-                _download.update(current=src["name"], done=0, total=0)
+                _download.update(current=src["name"], done=0, total=0, file_index=i)
             req = urllib.request.Request(src["url"], headers={"User-Agent": "PhishGuard-benchmark/1.0"})
             tmp = dest + ".part"
             with urllib.request.urlopen(req, timeout=30) as resp, open(tmp, "wb") as out:
@@ -146,41 +149,19 @@ def _download_worker(keys):
             _download.update(state="error", error=str(exc)[:300], current="")
 
 
-def start_download(include_spam):
+def start_download(group):
+    keys = [k for k, v in C.SOURCES.items() if group == "all" or v["group"] == group]
+    if not keys:
+        return False
     with _lock:
         if _download["state"] == "running":
-            return False
+            return None
         _download.update(state="running", current="", done=0, total=0, error="")
-    keys = ["phishing", "ham"] + (["spam"] if include_spam else [])
     threading.Thread(target=_download_worker, args=(keys,), daemon=True).start()
     return True
 
 
-# ── dataset loading ───────────────────────────────────────────────────────────
-def _load_private(key):
-    rows = _read_jsonl(os.path.join(BENCH_DIR, PRIVATE[key]["file"]))
-    return rows, {"name": PRIVATE[key]["name"], "kind": "private"}
-
-
-def _load_real(split, n, include_spam):
-    rnd = random.Random(REAL_SEED)
-    sets = {
-        "phishing": ("phishing", C.read_mbox(os.path.join(DATA_DIR, C.SOURCES["phishing"]["file"]))),
-        "legit": ("ham", C.read_tar(os.path.join(DATA_DIR, C.SOURCES["ham"]["file"]))),
-    }
-    if include_spam:
-        sets["spam"] = ("spam", C.read_tar(os.path.join(DATA_DIR, C.SOURCES["spam"]["file"])))
-    samples = []
-    for label, (_, it) in sets.items():
-        items = list(it)
-        if split != "all":
-            items = [s for s in items if C.half(s) == split]
-        rnd.shuffle(items)
-        for s in items[:n]:
-            samples.append({**s, "label": label, "category": ""})
-    return samples, {"name": "Real public corpora", "kind": "real"}
-
-
+# ── custom upload ─────────────────────────────────────────────────────────────
 def _clean_custom(rows):
     if not isinstance(rows, list) or not rows:
         raise ValueError("Upload a non-empty list of labelled emails.")
@@ -199,59 +180,19 @@ def _clean_custom(rows):
         if label not in ("phishing", "legit") or "@" not in sender:
             skipped += 1
             continue
-        cleaned.append({
-            "label": label, "sender": sender, "reply_to": str(r.get("reply_to") or "")[:500],
-            "subject": str(r.get("subject") or "")[:500], "content": str(r.get("content") or "")[:fm],
-            "category": str(r.get("category") or "")[:60],
-        })
-    labels = {c["label"] for c in cleaned}
-    if labels != {"phishing", "legit"}:
+        row = {k: str(r.get(k) or "")[:fm] for k in CUSTOM_FIELDS}
+        row.update(label=label, sender=sender, category=str(r.get("category") or "")[:60], source="")
+        row["list_id"] = bool(r.get("list_id"))
+        row["attachments"] = [{"filename": str(a)[:200]} for a in (r.get("attachments") or [])[:25]] \
+            if isinstance(r.get("attachments"), list) else []
+        cleaned.append(row)
+    if {c["label"] for c in cleaned} != {"phishing", "legit"}:
         raise ValueError("The file needs at least one 'phishing' and one 'legit' row with a valid sender "
                          f"(read {len(cleaned)} usable rows, skipped {skipped}).")
     return cleaned, skipped
 
 
-# ── scoring + summary ─────────────────────────────────────────────────────────
-def _summarize(scored, spec, meta, crashes, skipped, seconds):
-    rows = [r for r in scored if r["label"] in ("phishing", "legit")]
-    spam = [r for r in scored if r["label"] == "spam"]
-    show_sender = meta["kind"] != "real"        # real corpora: only the sender domain is kept
-    op = {"medium_or_above": M.metrics(rows, M.MEDIUM_T), "high_only": M.metrics(rows, M.HIGH_T)}
-
-    per_cat = []
-    cats = defaultdict(list)
-    for r in rows:
-        if r["category"]:
-            cats[(r["label"], r["category"])].append(r)
-    for (label, cat), items in sorted(cats.items()):
-        correct = sum((r["score"] >= M.MEDIUM_T) == (label == "phishing") for r in items)
-        per_cat.append({"label": label, "category": cat, "n": len(items), "correct": correct,
-                        "rate": correct / len(items), "mean_score": sum(r["score"] for r in items) / len(items)})
-
-    wrong = [r for r in rows if (r["score"] >= M.MEDIUM_T) != (r["label"] == "phishing")]
-    wrong.sort(key=lambda r: -abs(r["score"] - M.MEDIUM_T))
-    errors = [{"label": r["label"], "category": r["category"], "who": r["sender"] if show_sender else r["domain"],
-               "score": r["score"], "level": r["level"], "signals": r["signals"]} for r in wrong[:MAX_ERRORS]]
-
-    def top(pred):
-        return Counter(s for r in rows if pred(r) for s in r["signals"]).most_common(8)
-
-    result = {
-        "dataset": spec["dataset"], "name": meta["name"], "kind": meta["kind"],
-        "options": {k: spec[k] for k in ("split", "n", "include_spam") if k in spec},
-        "finished_at": _now(), "duration_s": round(seconds, 1),
-        "counts": {"phishing": sum(r["label"] == "phishing" for r in rows),
-                   "legit": sum(r["label"] == "legit" for r in rows), "spam": len(spam),
-                   "crashes": crashes, "skipped": skipped},
-        "auc": M.auc(rows), "operating_points": op, "sweep": M.sweep(rows),
-        "per_category": per_cat, "errors": errors, "error_total": len(wrong),
-        "top_signals_missed": top(lambda r: r["label"] == "phishing" and r["score"] < M.MEDIUM_T),
-        "top_signals_false_positive": top(lambda r: r["label"] == "legit" and r["score"] >= M.MEDIUM_T),
-        "spam_flag_rate": (sum(r["score"] >= M.MEDIUM_T for r in spam) / len(spam)) if spam else None,
-    }
-    return result
-
-
+# ── jobs ──────────────────────────────────────────────────────────────────────
 def _save(result, spec):
     if result["kind"] == "custom":
         return
@@ -270,30 +211,26 @@ def _run_worker(job_id, spec):
     try:
         skipped = 0
         job.update(state="running", phase="loading")
+        used = []
         if spec["dataset"] in PRIVATE:
-            samples, meta = _load_private(spec["dataset"])
+            samples = _read_jsonl(os.path.join(BENCH_DIR, PRIVATE[spec["dataset"]]["file"]))
+            meta = {"name": PRIVATE[spec["dataset"]]["name"], "kind": "private"}
         elif spec["dataset"] == "real":
-            samples, meta = _load_real(spec["split"], spec["n"], spec["include_spam"])
+            samples, used = engine.load_real(DATA_DIR, spec["split"], spec["n"], spec["include_spam"])
+            meta = {"name": "Real public corpora", "kind": "real", "sources": used}
         else:
             samples, skipped = spec["rows"], spec.get("skipped", 0)
             meta = {"name": "Uploaded file", "kind": "custom"}
         job.update(phase="scoring", total=len(samples), done=0)
 
-        det = PhishingDetector(use_whois=False)
-        scored, crashes = [], 0
-        for i, s in enumerate(samples, 1):
-            try:
-                res = det.analyze({"sender": s["sender"], "reply_to": s.get("reply_to", ""),
-                                   "subject": s.get("subject", ""), "content": s.get("content", "")})
-                scored.append({"label": s["label"], "category": s.get("category", ""), "sender": s["sender"][:200],
-                               "domain": res["domain"], "score": res["risk_level"], "level": res["risk_score"],
-                               "signals": sorted({w["type"] for w in res["warnings"]})})
-            except Exception:
-                crashes += 1
-            job["done"] = i
+        scored, crashes, times = engine.score(samples, PhishingDetector(use_whois=False),
+                                              progress=lambda i: job.__setitem__("done", i))
         if not any(r["label"] == "phishing" for r in scored) or not any(r["label"] == "legit" for r in scored):
             raise ValueError("The selection needs both phishing and legitimate emails.")
-        result = _summarize(scored, spec, meta, crashes, skipped, time.time() - t0)
+        meta.update(dataset=spec["dataset"], finished_at=_now(),
+                    options={k: spec[k] for k in ("split", "n", "include_spam") if k in spec})
+        result = engine.summarize(scored, meta, crashes, skipped, time.time() - t0, times,
+                                  show_sender=meta["kind"] != "real")
         _save(result, spec)
         job.update(state="done", phase="done", result=result)
     except FileNotFoundError:
@@ -316,8 +253,8 @@ def _validate_spec(body):
             raise ValueError("n must be a number")
         n = max(LIMITS["real_min_n"], min(n, LIMITS["real_max_n"]))
         spam = bool(body.get("include_spam", False))
-        if not _real_ready(spam):
-            raise ValueError("Download the public corpora first.")
+        if not _split_ready(split, spam):
+            raise ValueError("Download the public corpora for this split first.")
         return {"dataset": "real", "split": split, "n": n, "include_spam": spam}
     if dataset == "custom":
         rows, skipped = _clean_custom(body.get("rows"))
@@ -326,8 +263,7 @@ def _validate_spec(body):
 
 
 def _job_view(job):
-    keys = ("id", "state", "phase", "done", "total", "error", "result", "dataset", "created_at")
-    return {k: job.get(k) for k in keys}
+    return {k: job.get(k) for k in ("id", "state", "phase", "done", "total", "error", "result", "dataset", "created_at")}
 
 
 # ── routes ────────────────────────────────────────────────────────────────────
@@ -337,9 +273,16 @@ def datasets():
         dl = dict(_download)
     return jsonify({
         "private": _private_info(),
-        "real": {"files": _real_files(), "ready": _real_ready(False), "download": dl,
-                 "note": "Public corpora are fetched on request from their original sites and are not "
-                         "redistributed with this project. They are 2002-2015 era mail."},
+        "real": {
+            "files": _real_files(), "groups": C.GROUPS,
+            "ready": {sp: _split_ready(sp) for sp in ("dev", "test", "all")}, "download": dl,
+            "splits": {"dev": "Older phishing (2015-2022) with 2002-03 and 2025 legitimate mail. Where rules are diagnosed.",
+                       "test": "Recent phishing (2023-2025), time-held-out from the dev years, with the other half of the legitimate mail.",
+                       "all": "Everything above."},
+            "note": "Public corpora are fetched on request from their original sites and are not redistributed with "
+                    "this project. Phishing: J. Nazario corpus, CC BY 4.0. Legitimate mail: 2002-03 SpamAssassin ham "
+                    "and 2025 Apache mailing lists, so marketing mail and receipts are NOT represented.",
+        },
         "limits": LIMITS,
     })
 
@@ -347,8 +290,14 @@ def datasets():
 @bp.route("/real/download", methods=["POST"])
 def real_download():
     body = request.get_json(silent=True) or {}
-    if not start_download(bool(body.get("include_spam", True))):
+    group = body.get("group", "core")
+    if group not in ("core", "recent", "optional", "all"):
+        return jsonify({"error": "unknown group"}), 400
+    started = start_download(group)
+    if started is None:
         return jsonify({"error": "A download is already running."}), 409
+    if not started:
+        return jsonify({"error": "nothing to download"}), 400
     return jsonify({"started": True}), 202
 
 

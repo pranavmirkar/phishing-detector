@@ -11,6 +11,7 @@ Replaces the hardcoded 32-domain list with two free, no-key-required sources:
 """
 
 import io
+import os
 import sqlite3
 import threading
 import zipfile
@@ -25,7 +26,8 @@ STORE_TOP_N = 50_000   # rows kept in SQLite (exact-match trust checks)
 MATCH_TOP_N = 1_000    # rows used for Levenshtein (major brands only)
 WHOIS_TTL_H = 24       # hours before re-querying WHOIS
 WHOIS_TIMEOUT_S = 6    # max seconds per WHOIS call
-DB_PATH     = "phishing.db"
+# Absolute by default, so the server works from any working directory. Override with PG_DB.
+DB_PATH     = os.environ.get("PG_DB") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "phishing.db")
 
 # ── DB helpers ────────────────────────────────────────────────────────────────
 
@@ -109,6 +111,8 @@ def update_tranco(top_n: int = STORE_TOP_N):
         conn.commit()
         conn.close()
 
+        _trust_cache.clear()
+        _pool_cache.clear()
         _set_status("done", count=len(batch))
         return len(batch)
 
@@ -157,37 +161,48 @@ def needs_update() -> bool:
 
 # ── Domain lookup helpers ─────────────────────────────────────────────────────
 
+_trust_cache: dict = {}
+_pool_cache: dict = {}
+
+
 def is_trusted(domain: str) -> tuple[bool, int | None]:
-    """Exact-match check against Tranco top-50 K. Returns (trusted, rank)."""
+    """Exact-match check against Tranco top-50 K. Returns (trusted, rank). Cached in memory."""
+    d = domain.lower()
+    hit = _trust_cache.get(d)
+    if hit is not None:
+        return hit
     try:
         conn = _db()
-        row = conn.execute(
-            "SELECT rank FROM trusted_domains WHERE domain=?",
-            (domain.lower(),),
-        ).fetchone()
+        row = conn.execute("SELECT rank FROM trusted_domains WHERE domain=?", (d,)).fetchone()
         conn.close()
-        return (True, row[0]) if row else (False, None)
     except Exception:
         return False, None
+    out = (True, row[0]) if row else (False, None)
+    if len(_trust_cache) > 200_000:
+        _trust_cache.clear()
+    _trust_cache[d] = out
+    return out
 
 
 def get_levenshtein_pool() -> list[str]:
     """
     Return top-1 K domains from Tranco for Levenshtein comparison.
     Top-1 K captures Google, Microsoft, Apple, PayPal, Amazon, all banks, etc.
-    Using 1 K (not 50 K) keeps analysis time under 50 ms.
+    Using 1 K (not 50 K) keeps analysis under 50 ms. Cached until the list is refreshed.
     """
+    if "pool" in _pool_cache:
+        return _pool_cache["pool"]
     try:
         conn = _db()
-        rows = conn.execute(
-            "SELECT domain FROM trusted_domains ORDER BY rank LIMIT ?",
-            (MATCH_TOP_N,),
-        ).fetchall()
+        rows = conn.execute("SELECT domain FROM trusted_domains ORDER BY rank LIMIT ?", (MATCH_TOP_N,)).fetchall()
         conn.close()
         domains = [r[0] for r in rows]
-        return domains if domains else _fallback_domains()
     except Exception:
         return _fallback_domains()
+    if not domains:
+        return _fallback_domains()
+    _pool_cache["pool"] = domains
+    return domains
 
 
 def _fallback_domains() -> list[str]:

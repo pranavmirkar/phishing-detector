@@ -1,0 +1,24 @@
+# docker compose up --build   ->   http://localhost:8080
+services:
+  backend:
+    build: ./backend
+    environment:
+      PG_TRUST_PROXY: "1"                                   # rate limits use the real client IP behind nginx
+      PG_CORS_ORIGINS: ${PG_CORS_ORIGINS:-http://localhost:8080}
+      PG_OWN_DOMAINS: ${PG_OWN_DOMAINS:-}                   # e.g. "example.com" to flag impersonation of your own org
+      PG_STORE_CONTENT: ${PG_STORE_CONTENT:-1}              # 0 = never keep message bodies
+      PG_RATE_LIMIT: ${PG_RATE_LIMIT:-120}
+    volumes:
+      - pgdata:/data
+    restart: unless-stopped
+
+  web:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  pgdata:

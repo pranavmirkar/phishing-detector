@@ -15,6 +15,7 @@ async function req(path, opts = {}) {
 
 export const api = {
   analyze:     (data)        => req('/analyze',       { method: 'POST', body: JSON.stringify(data) }),
+  parse:       (raw)         => req('/parse',         { method: 'POST', body: JSON.stringify({ raw }) }),
   emails:      ()            => req('/emails'),
   email:       (id)          => req(`/emails/${id}`),
   stats:       ()            => req('/stats'),
@@ -29,6 +30,6 @@ export const api = {
   benchResults:      ()        => req('/benchmarks/results'),
   benchRun:          (spec)    => req('/benchmarks/run',           { method: 'POST',   body: JSON.stringify(spec) }),
   benchJob:          (id)      => req(`/benchmarks/jobs/${id}`),
-  benchDownload:     (spam)    => req('/benchmarks/real/download', { method: 'POST',   body: JSON.stringify({ include_spam: spam }) }),
+  benchDownload:     (group)   => req('/benchmarks/real/download', { method: 'POST',   body: JSON.stringify({ group }) }),
   benchDeleteReal:   ()        => req('/benchmarks/real',          { method: 'DELETE' }),
 }

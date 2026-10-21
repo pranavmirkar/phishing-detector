@@ -9,10 +9,10 @@ Positive class = phishing. An email is flagged when its risk score is at or abov
 | Operating point | Threshold | Accuracy | Balanced acc. | Precision | Recall | Specificity | F1 |
 |---|---|---|---|---|---|---|---|
 | MEDIUM or HIGH flagged | 25 | 97.3% | 97.9% | 100.0% | 95.8% | 100.0% | 97.8% |
-| HIGH only flagged | 55 | 91.9% | 93.6% | 100.0% | 87.3% | 100.0% | 93.2% |
+| HIGH only flagged | 55 | 91.5% | 93.3% | 100.0% | 86.7% | 100.0% | 92.9% |
 
 Confusion matrix, MEDIUM or HIGH flagged: TP=158 FP=0 TN=93 FN=7  
-Confusion matrix, HIGH only flagged: TP=144 FP=0 TN=93 FN=21  
+Confusion matrix, HIGH only flagged: TP=143 FP=0 TN=93 FN=22  
 
 ## Held-out validation
 
@@ -39,18 +39,18 @@ The dataset was split 70/30 (stratified, seed 7). The score threshold was chosen
 | legit | trusted_retail_marketing | 15 | 15 | 100.0% | 0 |
 | legit | trusted_same_org_tracking | 12 | 12 | 100.0% | 0 |
 | legit | trusted_security_alert | 14 | 14 | 100.0% | 0 |
-| phishing | combosquat | 10 | 10 | 100.0% | 94 |
-| phishing | crypto_giveaway | 10 | 10 | 100.0% | 98 |
-| phishing | display_name_spoof | 10 | 10 | 100.0% | 82 |
-| phishing | freemail_scam_text | 12 | 12 | 100.0% | 71 |
-| phishing | punycode_idn | 15 | 15 | 100.0% | 79 |
-| phishing | shipping_lure | 10 | 10 | 100.0% | 87 |
+| phishing | combosquat | 10 | 10 | 100.0% | 93 |
+| phishing | crypto_giveaway | 10 | 10 | 100.0% | 97 |
+| phishing | display_name_spoof | 10 | 10 | 100.0% | 94 |
+| phishing | freemail_scam_text | 12 | 12 | 100.0% | 70 |
+| phishing | punycode_idn | 15 | 15 | 100.0% | 83 |
+| phishing | shipping_lure | 10 | 10 | 100.0% | 84 |
 | phishing | spoofed_trusted_no_signal | 6 | 0 | 0.0% | 0 |
 | phishing | spoofed_trusted_reply_to | 10 | 10 | 100.0% | 42 |
 | phishing | subdomain_brand | 20 | 20 | 100.0% | 98 |
-| phishing | suffix_squat | 15 | 15 | 100.0% | 95 |
-| phishing | throwaway_domain_lure | 10 | 10 | 100.0% | 75 |
-| phishing | tld_squat | 11 | 11 | 100.0% | 97 |
+| phishing | suffix_squat | 15 | 15 | 100.0% | 93 |
+| phishing | throwaway_domain_lure | 10 | 10 | 100.0% | 77 |
+| phishing | tld_squat | 11 | 11 | 100.0% | 99 |
 | phishing | typo_double | 9 | 9 | 100.0% | 98 |
 | phishing | typo_rn | 4 | 4 | 100.0% | 100 |
 | phishing | typo_vowel | 13 | 12 | 92.3% | 89 |
@@ -69,16 +69,16 @@ The dataset was split 70/30 (stratified, seed 7). The score threshold was chosen
 | 40 | 100.0% | 95.8% | 0.0% | 97.8% | 97.3% |
 | 45 | 100.0% | 89.7% | 0.0% | 94.6% | 93.4% |
 | 50 | 100.0% | 89.1% | 0.0% | 94.2% | 93.0% |
-| 55 | 100.0% | 87.3% | 0.0% | 93.2% | 91.9% |
-| 60 | 100.0% | 84.8% | 0.0% | 91.8% | 90.3% |
+| 55 | 100.0% | 86.7% | 0.0% | 92.9% | 91.5% |
+| 60 | 100.0% | 86.1% | 0.0% | 92.5% | 91.1% |
 | 65 | 100.0% | 82.4% | 0.0% | 90.4% | 88.8% |
-| 70 | 100.0% | 80.0% | 0.0% | 88.9% | 87.2% |
-| 75 | 100.0% | 75.2% | 0.0% | 85.8% | 84.1% |
-| 80 | 100.0% | 71.5% | 0.0% | 83.4% | 81.8% |
-| 85 | 100.0% | 67.3% | 0.0% | 80.4% | 79.1% |
-| 90 | 100.0% | 62.4% | 0.0% | 76.9% | 76.0% |
+| 70 | 100.0% | 80.6% | 0.0% | 89.3% | 87.6% |
+| 75 | 100.0% | 77.0% | 0.0% | 87.0% | 85.3% |
+| 80 | 100.0% | 74.5% | 0.0% | 85.4% | 83.7% |
+| 85 | 100.0% | 70.3% | 0.0% | 82.6% | 81.0% |
+| 90 | 100.0% | 65.5% | 0.0% | 79.1% | 77.9% |
 | 95 | 100.0% | 55.8% | 0.0% | 71.6% | 71.7% |
-| 100 | 100.0% | 47.9% | 0.0% | 64.8% | 66.7% |
+| 100 | 100.0% | 49.1% | 0.0% | 65.9% | 67.4% |
 
 ## Misclassified samples at MEDIUM or above (7)
 

@@ -90,7 +90,8 @@ SCAM_PHRASES = [
 WEAK_SCAM_PHRASES = ["inheritance", "tied up in", "in a conference and", "bitcoin", " btc", "direct deposit"]
 
 ADMIN_DISPLAY_RE = re.compile(
-    r"\b(admin(istrator)?|webmail|(e-?)?mail (service|system|team|admin\w*)|help ?desk|it support|it'?s? help|"
+    r"\b(admin(istrator)?|webmail|postmaster|(mail|message|help|support|service|document) (center|centre|support|delivery|server|notification)s?|"
+    r"human resources?( team)?|hr (team|dept|department)|payroll|accounts? (payable|department)|(e-?)?mail (service|system|team|admin\w*)|help ?desk|it support|it'?s? help|"
     r"system (admin\w*)|account (support|team|service|warning)|security team|support team)\b", re.I)
 CLICK_RE = re.compile(r"click here|follow the (link|below)|link below|click (the )?(link|button)|proceed with|click on", re.I)
 
@@ -128,6 +129,67 @@ def _visible_text(content: str, limit: int = 1500) -> str:
     return re.sub(r"\s+", " ", t).strip()[:limit]
 
 
+# Attachment types that have no business in ordinary mail (HTML pages that open a fake login,
+# disk images / scripts / shortcuts used to deliver malware).
+HTML_ATTACH = {"html", "htm", "shtml", "xhtml", "xht", "svg", "mht", "mhtml"}
+EXEC_ATTACH = {"exe", "scr", "com", "bat", "cmd", "js", "jse", "vbs", "vbe", "wsf", "hta", "lnk", "iso", "img",
+               "jar", "msi", "ps1", "dll", "apk", "chm", "reg"}
+ARCHIVE_ATTACH = {"zip", "rar", "7z", "gz", "tar", "ace", "arj", "cab"}
+FORM_RE = re.compile(r"<form\b[^>]*?action\s*=\s*[\"']?(https?://[^\s\"'>]+)", re.I | re.S)
+PASSWORD_INPUT_RE = re.compile(r"<input\b[^>]*?type\s*=\s*[\"']?password", re.I | re.S)
+
+# Phrases that are specific to credential / payment fraud. Generic pressure and marketing wording
+# ("urgent", "limited time", "free gift", "guaranteed") is common in legitimate newsletters, so it
+# counts for much less.
+CORE_KEYWORDS = TRUSTED_SENDER_KEYWORDS | {
+    "login attempt", "unusual activity", "update your info", "reset your password", "credit card", "bank account",
+    "dear customer", "dear user", "dear valued member", "dear account holder", "claim your", "claim now",
+    "redelivery fee", "delivery attempt failed", "could not be delivered", "reschedule your parcel",
+    "reschedule your delivery", "customs fee", "make money fast", "earn $", "double your money", "lottery",
+}
+
+# Words that make a domain name look like a credential-harvesting host. (Common words such as "online",
+# "mail" or "service" are deliberately absent: they appear in countless legitimate names.)
+DOMAIN_CRED_WORDS = {
+    "secure", "security", "verify", "verification", "login", "signin", "logon", "account", "accounts", "update",
+    "support", "helpdesk", "billing", "payment", "payments", "auth", "authenticate", "alert", "alerts", "confirm",
+    "recover", "recovery", "unlock", "wallet", "customer", "care", "refund", "claim", "safe", "trust", "notice", "review",
+}
+
+# Legitimate platforms that attackers routinely abuse to host a fake login page or file.
+HOSTING_PLATFORMS = {
+    "sites.google.com", "forms.gle", "docs.google.com", "storage.googleapis.com", "firebasestorage.googleapis.com",
+    "dropboxusercontent.com", "1drv.ms", "onedrive.live.com", "sharepoint.com", "weebly.com", "wixsite.com",
+    "blogspot.com", "wordpress.com", "github.io", "netlify.app", "vercel.app", "pages.dev", "web.app",
+    "firebaseapp.com", "glitch.me", "herokuapp.com", "typeform.com", "jotform.com", "formspree.io", "ipfs.io",
+    "weeblysite.com", "webflow.io", "000webhostapp.com", "azurewebsites.net", "r2.dev", "workers.dev", "carrd.co",
+}
+
+DOCSHARE_RE = re.compile(
+    r"shared (a|the|an)? ?(document|file|folder)|"
+    r"(document|file|contract|proposal|invoice|statement|paystub|pay stub|voice ?mail|fax)s?\b[^.]{0,40}"
+    r"\b(shared with you|has arrived|have arrived|is waiting|are waiting|pending|encrypted)|"
+    r"you have (\(?\d+\)?|new|unread|pending|encrypted)[^.]{0,25}(mail|message|email|voice ?mail|fax)s?|"
+    r"\b(pending|unread|incoming|encrypted|blocked|held|quarantined) (incoming )?(mail|message|email)s?\b", re.I)
+SENSITIVE_FIELD_RE = re.compile(r"<input\b[^>]*?name\s*=\s*[\"']?[a-z_]*(passw|pwd|cvv|ssn|cardnum|card_number)", re.I | re.S)
+
+# Characters from other scripts that are used to disguise Latin words ("Rɵsɵt", "Pаypal").
+CONFUSABLES = {
+    "а": "a", "е": "e", "о": "o", "р": "p", "с": "c", "у": "y", "х": "x", "і": "i", "ѕ": "s", "ј": "j", "һ": "h",
+    "ԁ": "d", "ɡ": "g", "ո": "n", "ɵ": "o", "ο": "o", "α": "a", "ε": "e", "ι": "i", "ν": "v", "ρ": "p", "τ": "t",
+    "υ": "u", "κ": "k", "ɑ": "a", "ɛ": "e", "ı": "i", "ᴏ": "o", "ԍ": "g", "ⅼ": "l", "ǀ": "l", "Ι": "I", "Ο": "O",
+    "Α": "A", "Ε": "E", "Ρ": "P", "Τ": "T", "Χ": "X", "Ѕ": "S", "А": "A", "В": "B", "Е": "E", "К": "K", "М": "M",
+    "Н": "H", "О": "O", "Р": "P", "С": "C", "Т": "T", "Х": "X",
+}
+CONFUSABLE_TABLE = str.maketrans(CONFUSABLES)
+CONFUSABLE_WORD_RE = re.compile(r"\b(?=\w*[A-Za-z])(?=\w*[" + "".join(CONFUSABLES) + r"])\w{3,}\b")
+
+PAYMENT_LURE_RE = re.compile(
+    r"(trouble|problem|issue)s? with your (current )?(billing|payment)|update your (payment|billing)( details| information| method)?|"
+    r"(card|payment) (has been |was |is )?(declined|blocked|failed|expired)|"
+    r"(membership|subscription|account) (will be |has been |is )?(cancel+ed|suspended|expired|on hold)|"
+    r"(unauthori[sz]ed|unrecogni[sz]ed|suspicious) (access|transaction|activity|login|sign.?in)", re.I)
+
 URL_RE = re.compile(r"https?://[^\s<>\"')\]]+", re.I)
 ANCHOR_RE = re.compile(r"<a\b[^>]*?href\s*=\s*[\"']([^\"']+)[\"'][^>]*>(.*?)</a>", re.I | re.S)
 TAG_RE = re.compile(r"<[^>]+>")
@@ -152,6 +214,9 @@ GENERIC_DISPLAY = ROLE_WORDS | {
     "group", "mobile", "web", "mail", "email", "financial", "credit", "union", "federal", "the", "of",
     "from", "via", "and", "center", "centre", "member", "fdic", "my", "e", "id", "no", "reply",
     "update", "updates", "notice", "notices", "info", "information", "new", "important",
+    "feedback", "protection", "assistance", "secure", "inc", "rewards", "offers", "shipping", "delivery", "tracking",
+    "payments", "orders", "receipts", "invoice", "statement", "news", "promo", "international", "global", "worldwide",
+    "logistics", "courier", "services", "customer", "relations",
 }
 
 # Generic "your account/mailbox is in trouble, act now" structure (brand-independent).
@@ -601,7 +666,7 @@ class PhishingDetector:
 
             tld = registered.rsplit(".", 1)[-1]
             tokens = [t for t in re.split(r"[-_]", registered.split(".")[0]) if t]
-            lure_count = sum(t in LURE_WORDS for t in tokens)
+            lure_count = sum(t in DOMAIN_CRED_WORDS for t in tokens)
             if tld in ABUSED_TLDS:
                 add(10, "SUSPICIOUS_TLD", "MEDIUM", f"Domain uses a low-reputation TLD (.{tld})",
                     "These cheap TLDs are heavily used for disposable phishing sites.")
@@ -639,7 +704,7 @@ class PhishingDetector:
                     "Account-action wording combined with a brand that does not own the sender domain.")
 
         # ── 3. Keywords ───────────────────────────────────────────────────
-        keywords = self.check_keywords(text)
+        keywords = self.check_keywords(text.translate(CONFUSABLE_TABLE))
         if trusted:
             kw = [k for k in keywords if k in TRUSTED_SENDER_KEYWORDS]
             if kw:
@@ -647,17 +712,51 @@ class PhishingDetector:
                     f"{len(kw)} sensitive phrase(s) from a verified sender",
                     ", ".join(f'"{k}"' for k in kw[:6]))
         elif keywords:
-            add(min(len(keywords) * 6, 25), "SUSPICIOUS_KEYWORDS",
-                "HIGH" if len(keywords) >= 3 else "MEDIUM",
+            core = [k for k in keywords if k in CORE_KEYWORDS]
+            pts = min(len(core) * 6, 25) + min((len(keywords) - len(core)) * 2, 8)
+            add(min(pts, 28), "SUSPICIOUS_KEYWORDS", "HIGH" if len(core) >= 3 else "MEDIUM",
                 f"{len(keywords)} suspicious keyword(s) found in email body",
                 ", ".join(f'"{k}"' for k in keywords[:6]))
 
-        lure_text = f"{subject} {_visible_text(content)}"
-        if display and ADMIN_DISPLAY_RE.search(display) and not is_brand_domain:
-            if ACTION_RE.search(lure_text) and CLICK_RE.search(lure_text):
+        lure_text = f"{subject} {_visible_text(content)}".translate(CONFUSABLE_TABLE)
+        has_link = bool(URL_RE.search(content))
+        obf = CONFUSABLE_WORD_RE.findall(f"{subject} {_visible_text(content, 1200)}")
+        if obf and not data.get("list_id"):
+            add(15, "OBFUSCATED_TEXT", "MEDIUM", "Words disguised with look-alike letters from other alphabets",
+                ", ".join(sorted(set(obf))[:3]))
+        if not trusted and not data.get("list_id") and (has_link or ACTION_RE.search(lure_text)) and PAYMENT_LURE_RE.search(lure_text):
+            add(15, "PAYMENT_LURE", "MEDIUM", "Message warns about a payment / membership problem and asks you to act")
+        if display and ADMIN_DISPLAY_RE.search(display) and not is_brand_domain and not data.get("list_id"):
+            if (ACTION_RE.search(lure_text) or THREAT_RE.search(lure_text) or DOCSHARE_RE.search(lure_text)) and (CLICK_RE.search(lure_text) or has_link):
                 add(25, "ADMIN_IMPERSONATION", "MEDIUM",
                     "Sender poses as an IT / mail administrator and asks you to act on your account",
                     f"Display name: '{display}'")
+
+        if not trusted and not data.get("list_id") and has_link and DOCSHARE_RE.search(lure_text):
+            add(20, "DOCUMENT_LURE", "MEDIUM", "Message announces a shared document / pending mail and pushes you to open a link",
+                "A common way to lead to a fake login page.")
+
+        # The recipient's own organisation named by an outsider ("monkey.org Mail Center" from another domain)
+        owners = set()
+        for addr in [data.get("recipient")] + list(data.get("own_domains") or []):
+            if addr:
+                d = registered_domain(self.extract_domain(str(addr)) if "@" in str(addr) else str(addr).lower())
+                if d and d not in FREEMAIL:
+                    owners.add(d)
+        if owners and registered not in owners and not data.get("list_id"):
+            for od in owners:
+                label = od.split(".")[0]
+                in_display = od in display or (len(label) >= 4 and re.search(r"\b" + re.escape(label) + r"\b", display))
+                in_subject = od in subject.lower() or (len(label) >= 4 and re.search(r"\b" + re.escape(label) + r"\b", subject.lower()))
+                if in_display:
+                    add(35, "ORG_IMPERSONATION", "HIGH",
+                        f"Display name uses your organisation's name ('{od}') but the sender is '{registered}'",
+                        f"Display name: '{display}'")
+                    break
+                if in_subject and (ACTION_RE.search(lure_text) or THREAT_RE.search(lure_text)):
+                    add(20, "ORG_IMPERSONATION", "MEDIUM",
+                        f"Subject refers to your organisation ('{od}') with an account warning, from '{registered}'")
+                    break
 
         if not trusted:
             cats = sum(bool(r.search(lure_text)) for r in (THREAT_RE, ACTION_RE, URGENCY_RE))
@@ -689,8 +788,21 @@ class PhishingDetector:
                 link_pts += take
                 add(take, "SUSPICIOUS_LINK", "HIGH" if sev == "high" else "MEDIUM", msg)
 
-        # ── 5. Reply-To mismatch ──────────────────────────────────────────
-        if reply_to:
+        # Mail that claims to be a brand but links only to other domains, or to a free-hosting platform
+        link_regs = {registered_domain(urlparse(u).hostname or "") for u in URL_RE.findall(content)}
+        link_regs.discard("")
+        claimed = dn_brand or (is_brand_domain and role_local and next((b for b, d in PROTECTED.items() if registered in d), None))
+        if claimed and link_regs and not (link_regs & (PROTECTED[claimed] | {registered})):
+            add(30 if (is_brand_domain and role_local) else 20, "BRAND_LINKS_ELSEWHERE", "MEDIUM",
+                f"Claims to be {claimed} but none of its links go to a {claimed} domain",
+                ", ".join(sorted(link_regs)[:4]))
+        hosted = sorted(link_regs & HOSTING_PLATFORMS)
+        if hosted and not trusted and (claimed or ACTION_RE.search(lure_text) or THREAT_RE.search(lure_text) or DOCSHARE_RE.search(lure_text)):
+            add(15, "LINK_ON_HOSTING_PLATFORM", "MEDIUM",
+                f"Link points to a free-hosting platform ({hosted[0]}) often used for fake login pages")
+
+        # ── 5. Reply-To mismatch (mailing lists set Reply-To on purpose) ──
+        if reply_to and not data.get("list_id"):
             rt_reg = registered_domain(self.extract_domain(reply_to))
             if rt_reg and rt_reg != registered:
                 rt_trusted = (rt_reg not in FREEMAIL) and tranco_is_trusted(rt_reg)[0]
@@ -703,20 +815,69 @@ class PhishingDetector:
                         f"Reply-To domain '{rt_reg}' differs from sender domain '{registered}'",
                         "Replies go to a different, possibly attacker-controlled domain")
 
-        # ── 6. Email authentication results (optional header data) ────────
+        # Envelope sender (Return-Path) of a brand's mail must belong to the brand or to a
+        # well-known mail provider; a brand From with a random bounce domain is a forgery.
+        ret = data.get("return_path") or ""
+        if ret and is_brand_domain and role_local:
+            ret_reg = registered_domain(self.extract_domain(ret))
+            if ret_reg and ret_reg != registered and ret_reg not in PROTECTED_DOMAINS and not tranco_is_trusted(ret_reg)[0]:
+                add(25, "RETURN_PATH_MISMATCH", "HIGH",
+                    f"Claims to be {registered} but the envelope sender is '{ret_reg}'",
+                    "Genuine brand mail is sent through the brand's own or a well-known provider's servers.")
+
+        # ── 6. Email authentication results (header data from the receiving server) ──
         auth = data.get("auth_results") or ""
         if isinstance(auth, dict):
             auth = " ".join(f"{k}={v}" for k, v in auth.items())
         results = {k.lower(): v.lower() for k, v in AUTH_RE.findall(str(auth))}
-        failed = [k for k, v in results.items() if v in ("fail", "permerror")]
-        soft = [k for k, v in results.items() if v == "softfail"]
-        if failed:
-            add(40, "AUTH_FAILURE", "HIGH",
-                f"Email authentication failed ({', '.join(k.upper() for k in failed)})",
+        pts, bad = 0, []
+        if results.get("dmarc") in ("fail", "permerror"):
+            pts += 35; bad.append("DMARC")
+        if results.get("spf") in ("fail", "permerror"):
+            pts += 20; bad.append("SPF")
+        elif results.get("spf") == "softfail":
+            pts += 8; bad.append("SPF (soft)")
+        if results.get("dkim") in ("fail", "permerror"):
+            pts += 10; bad.append("DKIM")
+        if pts:
+            add(min(pts, 45), "AUTH_FAILURE", "HIGH" if pts >= 30 else "MEDIUM",
+                f"Email authentication failed ({', '.join(bad)})",
                 "The sending server was not authorised to send for this domain.")
-        elif soft:
-            add(15, "AUTH_FAILURE", "MEDIUM",
-                f"Email authentication soft-failed ({', '.join(k.upper() for k in soft)})")
+
+        if owners and registered in owners and pts:
+            add(30, "INTERNAL_SPOOF", "HIGH", f"Appears to come from your own domain ('{registered}') but failed authentication",
+                "Outsiders forge your own domain to look like internal IT or management.")
+
+        # ── 6b. Attachments ───────────────────────────────────────────────
+        att_pts = 0
+        for att in data.get("attachments") or []:
+            name = (att.get("filename") if isinstance(att, dict) else str(att)).lower()
+            parts = name.rsplit(".", 2)
+            ext = parts[-1] if "." in name else ""
+            inner = parts[-2] if len(parts) == 3 else ""
+            if ext in EXEC_ATTACH and inner in ("pdf", "doc", "docx", "xls", "xlsx", "jpg", "png", "txt"):
+                add(35, "RISKY_ATTACHMENT", "HIGH", f"Disguised executable attachment '{name}'", "Double extension hides the real file type.")
+                att_pts += 35
+            elif ext in EXEC_ATTACH:
+                add(30, "RISKY_ATTACHMENT", "HIGH", f"Executable or script attachment '{name}'")
+                att_pts += 30
+            elif ext in HTML_ATTACH:
+                add(25, "RISKY_ATTACHMENT", "HIGH", f"HTML attachment '{name}'",
+                    "HTML files attached to mail are a common way to show a fake login page.")
+                att_pts += 25
+            elif ext in ARCHIVE_ATTACH and not trusted:
+                add(8, "RISKY_ATTACHMENT", "MEDIUM", f"Archive attachment '{name}' from an unverified sender")
+                att_pts += 8
+            if att_pts >= 40:
+                break
+
+        # ── 6c. Credential-harvesting form embedded in the message ────────
+        if PASSWORD_INPUT_RE.search(content) or SENSITIVE_FIELD_RE.search(content):
+            action = FORM_RE.search(content)
+            host = registered_domain(urlparse(action.group(1)).hostname or "") if action else ""
+            if not host or host != registered:
+                add(35, "CREDENTIAL_FORM", "HIGH", "Message contains a password / card field",
+                    "Legitimate services never ask you to type a password inside an email.")
 
         # ── 7. Domain age check (WHOIS) — untrusted, non-freemail only ────
         age_info = {}
@@ -736,7 +897,10 @@ class PhishingDetector:
 
         spam = self.check_spam(subject, content, trusted=trusted)
         spam_weight = 0.15 if trusted else 0.4
-        combined_score = min(risk_level + round(spam["spam_score"] * spam_weight), 100)
+        spam_part = round(spam["spam_score"] * spam_weight)
+        if risk_level < 15:       # spam-looking alone is not phishing: require one phishing-specific indicator
+            spam_part = min(spam_part, max(0, 24 - risk_level))
+        combined_score = min(risk_level + spam_part, 100)
         combined_risk  = "HIGH" if combined_score >= 55 else "MEDIUM" if combined_score >= 25 else "LOW"
 
         return {

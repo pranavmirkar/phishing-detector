@@ -1,94 +1,1282 @@
 {
-  "n": {
-    "phishing": 151,
-    "legit": 400,
-    "spam": 400
+  "dataset": "real",
+  "split": "test",
+  "sources": [
+    "phish_2023",
+    "phish_2024",
+    "phish_2025",
+    "ham_easy",
+    "ham_hard",
+    "asf_kafka-users-202509",
+    "asf_maven-users-202509",
+    "asf_lucene-dev-202509",
+    "asf_kafka-dev-202509",
+    "asf_flink-user-202509"
+  ],
+  "duration_s": 37.1,
+  "counts": {
+    "phishing": 600,
+    "legit": 600,
+    "spam": 0,
+    "crashes": 0,
+    "skipped": 0
   },
-  "crashes": 0,
-  "medium_or_above": {
-    "phishing_recall": 0.7549668874172185,
-    "legit_false_positive_rate": 0.01,
-    "precision": 0.9661016949152542,
-    "f1": 0.8475836431226765,
-    "balanced_accuracy": 0.8724834437086092,
-    "spam_flag_rate": 0.3925
+  "auc": 0.9126111111111112,
+  "operating_points": {
+    "medium_or_above": {
+      "threshold": 25,
+      "n": 1200,
+      "tp": 434,
+      "fp": 16,
+      "tn": 584,
+      "fn": 166,
+      "accuracy": 0.8483333333333334,
+      "balanced_accuracy": 0.8483333333333334,
+      "precision": 0.9644444444444444,
+      "recall": 0.7233333333333334,
+      "specificity": 0.9733333333333334,
+      "f1": 0.8266666666666668,
+      "false_positive_rate": 0.026666666666666616,
+      "recall_ci": [
+        0.6862027970184568,
+        0.7576222060949427
+      ],
+      "false_positive_rate_ci": [
+        0.016479666253101218,
+        0.04287629729760481
+      ],
+      "precision_ci": [
+        0.9430282712851512,
+        0.9779979193505244
+      ],
+      "fp_per_1000": 26.666666666666615,
+      "fp_per_1000_ci": [
+        16.479666253101218,
+        42.87629729760481
+      ],
+      "precision_at_prevalence": {
+        "0.01": 0.21506442021803798,
+        "0.05": 0.5880758807588081,
+        "0.2": 0.8714859437751007
+      },
+      "positives": 600,
+      "negatives": 600
+    },
+    "high_only": {
+      "threshold": 55,
+      "n": 1200,
+      "tp": 268,
+      "fp": 5,
+      "tn": 595,
+      "fn": 332,
+      "accuracy": 0.7191666666666666,
+      "balanced_accuracy": 0.7191666666666667,
+      "precision": 0.9816849816849816,
+      "recall": 0.44666666666666666,
+      "specificity": 0.9916666666666667,
+      "f1": 0.6139747995418098,
+      "false_positive_rate": 0.008333333333333304,
+      "recall_ci": [
+        0.40735118075092785,
+        0.4866607588040814
+      ],
+      "false_positive_rate_ci": [
+        0.0035645513465728095,
+        0.019358016426167593
+      ],
+      "precision_ci": [
+        0.9578494384204806,
+        0.9921522954229879
+      ],
+      "fp_per_1000": 8.333333333333304,
+      "fp_per_1000_ci": [
+        3.5645513465728094,
+        19.358016426167595
+      ],
+      "precision_at_prevalence": {
+        "0.01": 0.35124508519004016,
+        "0.05": 0.7382920110192844,
+        "0.2": 0.9305555555555558
+      },
+      "positives": 600,
+      "negatives": 600
+    }
   },
-  "high_only": {
-    "phishing_recall": 0.40397350993377484,
-    "legit_false_positive_rate": 0.005,
-    "precision": 0.9682539682539683,
-    "f1": 0.5700934579439253,
-    "balanced_accuracy": 0.6994867549668875,
-    "spam_flag_rate": 0.075
-  },
-  "top_signals_on_missed_phishing": [
-    [
-      "TRUSTED_VERIFIED",
-      18
-    ],
+  "sweep": [
+    {
+      "threshold": 5,
+      "n": 1200,
+      "tp": 557,
+      "fp": 221,
+      "tn": 379,
+      "fn": 43,
+      "accuracy": 0.78,
+      "balanced_accuracy": 0.78,
+      "precision": 0.7159383033419023,
+      "recall": 0.9283333333333333,
+      "specificity": 0.6316666666666667,
+      "f1": 0.8084179970972424,
+      "false_positive_rate": 0.3683333333333333
+    },
+    {
+      "threshold": 10,
+      "n": 1200,
+      "tp": 505,
+      "fp": 96,
+      "tn": 504,
+      "fn": 95,
+      "accuracy": 0.8408333333333333,
+      "balanced_accuracy": 0.8408333333333333,
+      "precision": 0.8402662229617305,
+      "recall": 0.8416666666666667,
+      "specificity": 0.84,
+      "f1": 0.8409658617818485,
+      "false_positive_rate": 0.16000000000000003
+    },
+    {
+      "threshold": 15,
+      "n": 1200,
+      "tp": 473,
+      "fp": 45,
+      "tn": 555,
+      "fn": 127,
+      "accuracy": 0.8566666666666667,
+      "balanced_accuracy": 0.8566666666666667,
+      "precision": 0.9131274131274131,
+      "recall": 0.7883333333333333,
+      "specificity": 0.925,
+      "f1": 0.846153846153846,
+      "false_positive_rate": 0.07499999999999996
+    },
+    {
+      "threshold": 20,
+      "n": 1200,
+      "tp": 458,
+      "fp": 28,
+      "tn": 572,
+      "fn": 142,
+      "accuracy": 0.8583333333333333,
+      "balanced_accuracy": 0.8583333333333334,
+      "precision": 0.9423868312757202,
+      "recall": 0.7633333333333333,
+      "specificity": 0.9533333333333334,
+      "f1": 0.843462246777164,
+      "false_positive_rate": 0.046666666666666634
+    },
+    {
+      "threshold": 25,
+      "n": 1200,
+      "tp": 434,
+      "fp": 16,
+      "tn": 584,
+      "fn": 166,
+      "accuracy": 0.8483333333333334,
+      "balanced_accuracy": 0.8483333333333334,
+      "precision": 0.9644444444444444,
+      "recall": 0.7233333333333334,
+      "specificity": 0.9733333333333334,
+      "f1": 0.8266666666666668,
+      "false_positive_rate": 0.026666666666666616
+    },
+    {
+      "threshold": 30,
+      "n": 1200,
+      "tp": 420,
+      "fp": 16,
+      "tn": 584,
+      "fn": 180,
+      "accuracy": 0.8366666666666667,
+      "balanced_accuracy": 0.8366666666666667,
+      "precision": 0.963302752293578,
+      "recall": 0.7,
+      "specificity": 0.9733333333333334,
+      "f1": 0.8108108108108107,
+      "false_positive_rate": 0.026666666666666616
+    },
+    {
+      "threshold": 35,
+      "n": 1200,
+      "tp": 404,
+      "fp": 15,
+      "tn": 585,
+      "fn": 196,
+      "accuracy": 0.8241666666666667,
+      "balanced_accuracy": 0.8241666666666667,
+      "precision": 0.964200477326969,
+      "recall": 0.6733333333333333,
+      "specificity": 0.975,
+      "f1": 0.7929342492639844,
+      "false_positive_rate": 0.025000000000000022
+    },
+    {
+      "threshold": 40,
+      "n": 1200,
+      "tp": 367,
+      "fp": 12,
+      "tn": 588,
+      "fn": 233,
+      "accuracy": 0.7958333333333333,
+      "balanced_accuracy": 0.7958333333333334,
+      "precision": 0.9683377308707124,
+      "recall": 0.6116666666666667,
+      "specificity": 0.98,
+      "f1": 0.7497446373850868,
+      "false_positive_rate": 0.020000000000000018
+    },
+    {
+      "threshold": 45,
+      "n": 1200,
+      "tp": 326,
+      "fp": 11,
+      "tn": 589,
+      "fn": 274,
+      "accuracy": 0.7625,
+      "balanced_accuracy": 0.7625,
+      "precision": 0.9673590504451038,
+      "recall": 0.5433333333333333,
+      "specificity": 0.9816666666666667,
+      "f1": 0.695837780149413,
+      "false_positive_rate": 0.018333333333333313
+    },
+    {
+      "threshold": 50,
+      "n": 1200,
+      "tp": 297,
+      "fp": 8,
+      "tn": 592,
+      "fn": 303,
+      "accuracy": 0.7408333333333333,
+      "balanced_accuracy": 0.7408333333333333,
+      "precision": 0.9737704918032787,
+      "recall": 0.495,
+      "specificity": 0.9866666666666667,
+      "f1": 0.656353591160221,
+      "false_positive_rate": 0.013333333333333308
+    },
+    {
+      "threshold": 55,
+      "n": 1200,
+      "tp": 268,
+      "fp": 5,
+      "tn": 595,
+      "fn": 332,
+      "accuracy": 0.7191666666666666,
+      "balanced_accuracy": 0.7191666666666667,
+      "precision": 0.9816849816849816,
+      "recall": 0.44666666666666666,
+      "specificity": 0.9916666666666667,
+      "f1": 0.6139747995418098,
+      "false_positive_rate": 0.008333333333333304
+    },
+    {
+      "threshold": 60,
+      "n": 1200,
+      "tp": 244,
+      "fp": 4,
+      "tn": 596,
+      "fn": 356,
+      "accuracy": 0.7,
+      "balanced_accuracy": 0.7,
+      "precision": 0.9838709677419355,
+      "recall": 0.4066666666666667,
+      "specificity": 0.9933333333333333,
+      "f1": 0.5754716981132075,
+      "false_positive_rate": 0.00666666666666671
+    },
+    {
+      "threshold": 65,
+      "n": 1200,
+      "tp": 219,
+      "fp": 3,
+      "tn": 597,
+      "fn": 381,
+      "accuracy": 0.68,
+      "balanced_accuracy": 0.6799999999999999,
+      "precision": 0.9864864864864865,
+      "recall": 0.365,
+      "specificity": 0.995,
+      "f1": 0.5328467153284672,
+      "false_positive_rate": 0.0050000000000000044
+    },
+    {
+      "threshold": 70,
+      "n": 1200,
+      "tp": 200,
+      "fp": 1,
+      "tn": 599,
+      "fn": 400,
+      "accuracy": 0.6658333333333334,
+      "balanced_accuracy": 0.6658333333333333,
+      "precision": 0.9950248756218906,
+      "recall": 0.3333333333333333,
+      "specificity": 0.9983333333333333,
+      "f1": 0.4993757802746566,
+      "false_positive_rate": 0.0016666666666667052
+    },
+    {
+      "threshold": 75,
+      "n": 1200,
+      "tp": 173,
+      "fp": 1,
+      "tn": 599,
+      "fn": 427,
+      "accuracy": 0.6433333333333333,
+      "balanced_accuracy": 0.6433333333333333,
+      "precision": 0.9942528735632183,
+      "recall": 0.28833333333333333,
+      "specificity": 0.9983333333333333,
+      "f1": 0.44702842377260976,
+      "false_positive_rate": 0.0016666666666667052
+    },
+    {
+      "threshold": 80,
+      "n": 1200,
+      "tp": 159,
+      "fp": 1,
+      "tn": 599,
+      "fn": 441,
+      "accuracy": 0.6316666666666667,
+      "balanced_accuracy": 0.6316666666666666,
+      "precision": 0.99375,
+      "recall": 0.265,
+      "specificity": 0.9983333333333333,
+      "f1": 0.418421052631579,
+      "false_positive_rate": 0.0016666666666667052
+    },
+    {
+      "threshold": 85,
+      "n": 1200,
+      "tp": 139,
+      "fp": 1,
+      "tn": 599,
+      "fn": 461,
+      "accuracy": 0.615,
+      "balanced_accuracy": 0.615,
+      "precision": 0.9928571428571429,
+      "recall": 0.23166666666666666,
+      "specificity": 0.9983333333333333,
+      "f1": 0.37567567567567567,
+      "false_positive_rate": 0.0016666666666667052
+    },
+    {
+      "threshold": 90,
+      "n": 1200,
+      "tp": 118,
+      "fp": 1,
+      "tn": 599,
+      "fn": 482,
+      "accuracy": 0.5975,
+      "balanced_accuracy": 0.5974999999999999,
+      "precision": 0.9915966386554622,
+      "recall": 0.19666666666666666,
+      "specificity": 0.9983333333333333,
+      "f1": 0.32823365785813624,
+      "false_positive_rate": 0.0016666666666667052
+    },
+    {
+      "threshold": 95,
+      "n": 1200,
+      "tp": 94,
+      "fp": 1,
+      "tn": 599,
+      "fn": 506,
+      "accuracy": 0.5775,
+      "balanced_accuracy": 0.5775,
+      "precision": 0.9894736842105263,
+      "recall": 0.15666666666666668,
+      "specificity": 0.9983333333333333,
+      "f1": 0.27050359712230215,
+      "false_positive_rate": 0.0016666666666667052
+    },
+    {
+      "threshold": 100,
+      "n": 1200,
+      "tp": 72,
+      "fp": 0,
+      "tn": 600,
+      "fn": 528,
+      "accuracy": 0.56,
+      "balanced_accuracy": 0.56,
+      "precision": 1.0,
+      "recall": 0.12,
+      "specificity": 1.0,
+      "f1": 0.21428571428571425,
+      "false_positive_rate": 0.0
+    }
+  ],
+  "fixed_fpr": [
+    {
+      "target": 0.01,
+      "threshold": 55,
+      "recall": 0.44666666666666666,
+      "fpr": 0.008333333333333304
+    },
+    {
+      "target": 0.005,
+      "threshold": 67,
+      "recall": 0.3383333333333333,
+      "fpr": 0.0033333333333332993
+    },
+    {
+      "target": 0.001,
+      "threshold": 97,
+      "recall": 0.125,
+      "fpr": 0.0
+    }
+  ],
+  "per_category": [],
+  "per_source": [
+    {
+      "source": "asf_flink-user-202509",
+      "name": "Apache flink-user (2025-09)",
+      "label": "legit",
+      "n": 53,
+      "flagged": 4,
+      "rate": 0.07547169811320754,
+      "ci": [
+        0.029739073598901808,
+        0.17858722263484245
+      ]
+    },
+    {
+      "source": "asf_kafka-dev-202509",
+      "name": "Apache kafka-dev (2025-09)",
+      "label": "legit",
+      "n": 77,
+      "flagged": 0,
+      "rate": 0.0,
+      "ci": [
+        3.469446951953614e-18,
+        0.047520088667220836
+      ]
+    },
+    {
+      "source": "asf_kafka-users-202509",
+      "name": "Apache kafka-users (2025-09)",
+      "label": "legit",
+      "n": 15,
+      "flagged": 0,
+      "rate": 0.0,
+      "ci": [
+        0.0,
+        0.20388926630434784
+      ]
+    },
+    {
+      "source": "asf_lucene-dev-202509",
+      "name": "Apache lucene-dev (2025-09)",
+      "label": "legit",
+      "n": 73,
+      "flagged": 0,
+      "rate": 0.0,
+      "ci": [
+        0.0,
+        0.04999375338358389
+      ]
+    },
+    {
+      "source": "asf_maven-users-202509",
+      "name": "Apache maven-users (2025-09)",
+      "label": "legit",
+      "n": 16,
+      "flagged": 0,
+      "rate": 0.0,
+      "ci": [
+        0.0,
+        0.19361341827271994
+      ]
+    },
+    {
+      "source": "ham_easy",
+      "name": "SpamAssassin easy ham (2002-03)",
+      "label": "legit",
+      "n": 295,
+      "flagged": 3,
+      "rate": 0.010169491525423728,
+      "ci": [
+        0.0034643938938835397,
+        0.029468102786632158
+      ]
+    },
+    {
+      "source": "ham_hard",
+      "name": "SpamAssassin hard ham (legit mail that looks like spam)",
+      "label": "legit",
+      "n": 71,
+      "flagged": 9,
+      "rate": 0.1267605633802817,
+      "ci": [
+        0.0681445057945265,
+        0.22369318874968427
+      ]
+    },
+    {
+      "source": "phish_2023",
+      "name": "Nazario phishing 2023",
+      "label": "phishing",
+      "n": 191,
+      "flagged": 153,
+      "rate": 0.8010471204188482,
+      "ci": [
+        0.7387424908296533,
+        0.8514805416233752
+      ]
+    },
+    {
+      "source": "phish_2024",
+      "name": "Nazario phishing 2024",
+      "label": "phishing",
+      "n": 180,
+      "flagged": 141,
+      "rate": 0.7833333333333333,
+      "ci": [
+        0.7175661628363559,
+        0.8372592956017779
+      ]
+    },
+    {
+      "source": "phish_2025",
+      "name": "Nazario phishing 2025",
+      "label": "phishing",
+      "n": 229,
+      "flagged": 140,
+      "rate": 0.611353711790393,
+      "ci": [
+        0.5468787536358144,
+        0.6721542713906412
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "label": "legit",
+      "category": "",
+      "source": "asf_flink-user-202509",
+      "who": "gmail.com",
+      "score": 96,
+      "level": "HIGH",
+      "signals": [
+        "BRAND_MISMATCH",
+        "FREEMAIL_SENDER",
+        "HIGH_URL_DENSITY",
+        "LINK_MISMATCH",
+        "SUSPICIOUS_LINK"
+      ]
+    },
+    {
+      "label": "legit",
+      "category": "",
+      "source": "ham_hard",
+      "who": "lindows.com",
+      "score": 67,
+      "level": "HIGH",
+      "signals": [
+        "HIGH_URL_DENSITY",
+        "LOOKALIKE_DOMAIN",
+        "SPAM_KEYWORDS",
+        "SUSPICIOUS_KEYWORDS"
+      ]
+    },
+    {
+      "label": "legit",
+      "category": "",
+      "source": "asf_flink-user-202509",
+      "who": "gmail.com",
+      "score": 66,
+      "level": "HIGH",
+      "signals": [
+        "FREEMAIL_SENDER",
+        "HIGH_URL_DENSITY",
+        "LINK_MISMATCH",
+        "SUSPICIOUS_LINK"
+      ]
+    },
+    {
+      "label": "legit",
+      "category": "",
+      "source": "ham_easy",
+      "who": "birch.net",
+      "score": 62,
+      "level": "HIGH",
+      "signals": [
+        "BRAND_MISMATCH",
+        "HIGH_URL_DENSITY",
+        "SPAM_KEYWORDS",
+        "SUSPICIOUS_KEYWORDS"
+      ]
+    },
+    {
+      "label": "legit",
+      "category": "",
+      "source": "ham_easy",
+      "who": "dman.ddts.net",
+      "score": 55,
+      "level": "HIGH",
+      "signals": [
+        "LOOKALIKE_DOMAIN"
+      ]
+    },
+    {
+      "label": "legit",
+      "category": "",
+      "source": "ham_hard",
+      "who": "lockergnome.com",
+      "score": 54,
+      "level": "MEDIUM",
+      "signals": [
+        "BRAND_MISMATCH",
+        "BULK_SENDER",
+        "HIGH_URL_DENSITY",
+        "SPAM_KEYWORDS",
+        "SUSPICIOUS_KEYWORDS"
+      ]
+    },
+    {
+      "label": "legit",
+      "category": "",
+      "source": "ham_hard",
+      "who": "lockergnome.com",
+      "score": 54,
+      "level": "MEDIUM",
+      "signals": [
+        "BRAND_MISMATCH",
+        "BULK_SENDER",
+        "HIGH_URL_DENSITY",
+        "SPAM_KEYWORDS",
+        "SUSPICIOUS_KEYWORDS"
+      ]
+    },
+    {
+      "label": "legit",
+      "category": "",
+      "source": "ham_hard",
+      "who": "bounce.winxpnews.com",
+      "score": 54,
+      "level": "MEDIUM",
+      "signals": [
+        "BRAND_MISMATCH",
+        "BULK_SENDER",
+        "HIGH_URL_DENSITY",
+        "SPAM_KEYWORDS",
+        "SUSPICIOUS_KEYWORDS"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "iyftv.org",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2023",
+      "who": "alphafrau.de",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "gmail.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": [
+        "FREEMAIL_SENDER"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2024",
+      "who": "ziranceylan.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2023",
+      "who": "souen-dmclinic.jp",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "ninestarslntl.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "antecasinostakeonlinefun.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "portal1.espelhosvip.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2024",
+      "who": "emiratesbd.net",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "fchoicep.co",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "gmail.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": [
+        "FREEMAIL_SENDER"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2023",
+      "who": "gmail.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": [
+        "FREEMAIL_SENDER"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2024",
+      "who": "grocerymanila.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2024",
+      "who": "1.stoporgo.org",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "factura.personal.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "hotmail.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": [
+        "FREEMAIL_SENDER"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "l-rex.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "a7.waraxe5.biz.id",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2024",
+      "who": "fengwende.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "untumbes.edu.pe",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2024",
+      "who": "xakemtpermcate.biz.id",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "a24.ironman1.biz.id",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2023",
+      "who": "gmail.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": [
+        "FREEMAIL_SENDER"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "gmail.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": [
+        "FREEMAIL_SENDER"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "horizonhomecarellc.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "apsfl.co.in",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "accountprotection.microsoft.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": [
+        "TRUSTED_VERIFIED"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "gmail.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": [
+        "FREEMAIL_SENDER"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "ttcls.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "mctilibya.net",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "gmail.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": [
+        "FREEMAIL_SENDER"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "gmail.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": [
+        "FREEMAIL_SENDER"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2023",
+      "who": "onpointeriskanalyzer.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "iyftv.org",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2024",
+      "who": "c53.teal-consulting.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": []
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "gmail.com",
+      "score": 0,
+      "level": "LOW",
+      "signals": [
+        "FREEMAIL_SENDER"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2024",
+      "who": "onshape.com",
+      "score": 2,
+      "level": "LOW",
+      "signals": [
+        "HIGH_URL_DENSITY",
+        "TRUSTED_VERIFIED"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2023",
+      "who": "em.marshalls.com",
+      "score": 2,
+      "level": "LOW",
+      "signals": [
+        "HIGH_URL_DENSITY",
+        "TRUSTED_VERIFIED"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2024",
+      "who": "medicinalgardenkit.za.com",
+      "score": 2,
+      "level": "LOW",
+      "signals": [
+        "HIGH_URL_DENSITY",
+        "TRUSTED_VERIFIED"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2023",
+      "who": "savagegrowpro.za.com",
+      "score": 2,
+      "level": "LOW",
+      "signals": [
+        "HIGH_URL_DENSITY",
+        "TRUSTED_VERIFIED"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2024",
+      "who": "trinity-health.org",
+      "score": 2,
+      "level": "LOW",
+      "signals": [
+        "HIGH_URL_DENSITY",
+        "TRUSTED_VERIFIED"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "college-de-france.fr",
+      "score": 2,
+      "level": "LOW",
+      "signals": [
+        "HIGH_URL_DENSITY",
+        "TRUSTED_VERIFIED"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2024",
+      "who": "groups.google.com",
+      "score": 2,
+      "level": "LOW",
+      "signals": [
+        "HIGH_URL_DENSITY",
+        "TRUSTED_VERIFIED"
+      ]
+    },
+    {
+      "label": "legit",
+      "category": "",
+      "source": "ham_hard",
+      "who": "buy4now.ie",
+      "score": 48,
+      "level": "MEDIUM",
+      "signals": [
+        "BRAND_MISMATCH",
+        "BULK_SENDER",
+        "HIGH_URL_DENSITY",
+        "SPAM_KEYWORDS",
+        "SUSPICIOUS_KEYWORDS"
+      ]
+    },
+    {
+      "label": "legit",
+      "category": "",
+      "source": "ham_hard",
+      "who": "newsletter.online.com",
+      "score": 48,
+      "level": "MEDIUM",
+      "signals": [
+        "BULK_SENDER",
+        "HIGH_URL_DENSITY",
+        "LINK_MISMATCH",
+        "SPAM_KEYWORDS",
+        "SUSPICIOUS_KEYWORDS"
+      ]
+    },
+    {
+      "label": "legit",
+      "category": "",
+      "source": "ham_hard",
+      "who": "newsletter.online.com",
+      "score": 46,
+      "level": "MEDIUM",
+      "signals": [
+        "BRAND_MISMATCH",
+        "BULK_SENDER",
+        "EXCESSIVE_CAPS",
+        "HIGH_URL_DENSITY"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2024",
+      "who": "icommu.co.jp",
+      "score": 5,
+      "level": "LOW",
+      "signals": [
+        "HIGH_URL_DENSITY"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2023",
+      "who": "mselc.org",
+      "score": 5,
+      "level": "LOW",
+      "signals": [
+        "HIGH_URL_DENSITY"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2024",
+      "who": "b-engage.com",
+      "score": 5,
+      "level": "LOW",
+      "signals": [
+        "HIGH_URL_DENSITY"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2023",
+      "who": "optusnet.com.au",
+      "score": 5,
+      "level": "LOW",
+      "signals": [
+        "HIGH_URL_DENSITY",
+        "SUSPICIOUS_KEYWORDS",
+        "TRUSTED_VERIFIED"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2024",
+      "who": "emiratespost.ae",
+      "score": 5,
+      "level": "LOW",
+      "signals": [
+        "HIGH_URL_DENSITY"
+      ]
+    },
+    {
+      "label": "phishing",
+      "category": "",
+      "source": "phish_2025",
+      "who": "ntc.net.np",
+      "score": 5,
+      "level": "LOW",
+      "signals": [
+        "HIGH_URL_DENSITY"
+      ]
+    }
+  ],
+  "error_total": 182,
+  "top_signals_missed": [
     [
       "HIGH_URL_DENSITY",
-      13
+      90
     ],
     [
       "SUSPICIOUS_KEYWORDS",
-      10
+      46
+    ],
+    [
+      "SPAM_KEYWORDS",
+      45
+    ],
+    [
+      "BULK_SENDER",
+      25
+    ],
+    [
+      "AUTH_FAILURE",
+      20
+    ],
+    [
+      "FREEMAIL_SENDER",
+      12
+    ],
+    [
+      "SUSPICIOUS_TLD",
+      6
     ],
     [
       "EXCESSIVE_CAPS",
+      5
+    ]
+  ],
+  "top_signals_false_positive": [
+    [
+      "HIGH_URL_DENSITY",
+      15
+    ],
+    [
+      "BRAND_MISMATCH",
+      11
+    ],
+    [
+      "BULK_SENDER",
       8
     ],
     [
       "SPAM_KEYWORDS",
-      6
-    ],
-    [
-      "REPLY_TO_MISMATCH",
-      4
-    ],
-    [
-      "FREEMAIL_SENDER",
-      1
-    ],
-    [
-      "EXCESSIVE_EXCLAMATIONS",
-      1
-    ]
-  ],
-  "top_signals_on_false_positives": [
-    [
-      "BRAND_MISMATCH",
-      2
-    ],
-    [
-      "HIGH_URL_DENSITY",
-      2
-    ],
-    [
-      "SPAM_KEYWORDS",
-      1
+      7
     ],
     [
       "SUSPICIOUS_KEYWORDS",
-      1
+      7
+    ],
+    [
+      "FREEMAIL_SENDER",
+      4
+    ],
+    [
+      "LINK_MISMATCH",
+      4
     ],
     [
       "LOOKALIKE_DOMAIN",
-      1
-    ],
-    [
-      "REPLY_TO_MISMATCH",
-      1
-    ],
-    [
-      "TRUSTED_VERIFIED",
-      1
+      2
     ]
   ],
-  "false_positive_sender_domains": [
-    "birch.net",
-    "dman.ddts.net",
-    "doolin.com",
-    "sbcglobal.net"
-  ]
+  "spam_flag_rate": null,
+  "latency_ms": {
+    "mean": 30.9,
+    "p50": 29.4,
+    "p95": 83.0
+  }
 }

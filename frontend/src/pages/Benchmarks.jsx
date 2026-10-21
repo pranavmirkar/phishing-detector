@@ -109,13 +109,72 @@ function ThresholdChart({ sweep, theme }) {
   )
 }
 
+const TIERS = [
+  { name: 'Warning assistant', rule: '≥ 70% of phishing caught and ≤ 20 false alarms per 1,000 legitimate emails', recall: 0.70, fp: 20,
+    note: 'Fine as a "take a second look" banner that a person reviews.' },
+  { name: 'Inbox filter', rule: '≥ 90% caught and ≤ 1 false alarm per 1,000', recall: 0.90, fp: 1,
+    note: 'Needed before mail could be moved or hidden automatically.' },
+  { name: 'Production gateway', rule: '≥ 99% caught and ≤ 0.1 false alarms per 1,000', recall: 0.99, fp: 0.1,
+    note: 'Roughly where commercial email security products operate. Not claimed here.' },
+]
+
+function RealWorld({ shown, op }) {
+  const [rlo, rhi] = op.recall_ci
+  const [flo, fhi] = op.fp_per_1000_ci
+  return (
+    <div className="card">
+      <div className="card-hd">
+        <div><h3 className="card-title">Real-world view</h3>
+          <p className="card-sub">What this would feel like in an inbox, at the Medium + cut-off</p></div>
+      </div>
+      <div className="rw-grid">
+        <div><p className="meta-label">False alarms per 1,000 legitimate emails</p>
+          <p className="rw-big">{op.fp_per_1000.toFixed(1)}</p>
+          <p className="hint">95% interval {flo.toFixed(1)}–{fhi.toFixed(1)} · from {op.negatives} legitimate emails</p></div>
+        <div><p className="meta-label">Phishing caught</p>
+          <p className="rw-big">{pct(op.recall)}</p>
+          <p className="hint">95% interval {pct(rlo)}–{pct(rhi)} · from {op.positives} phishing emails</p></div>
+        <div><p className="meta-label">Precision if 1 email in 100 is phishing</p>
+          <p className="rw-big">{pct(op.precision_at_prevalence['0.01'])}</p>
+          <p className="hint">{pct(op.precision_at_prevalence['0.05'])} at 1 in 20. The balanced test set overstates precision ({pct(op.precision)}).</p></div>
+      </div>
+      <div className="card-body" style={{ borderTop: '1px solid var(--border)' }}>
+        <p className="meta-label">Best recall at a false-alarm budget <span className="muted">(cut-off chosen on this same set, so optimistic)</span></p>
+        <div className="budget">
+          {shown.fixed_fpr.map(f => (
+            <div key={f.target}><span>≤ {pct(f.target)} false alarms</span>
+              <strong>{pct(f.recall)}</strong><span className="muted">{f.threshold == null ? 'not reachable' : `cut-off ${f.threshold}`}</span></div>
+          ))}
+        </div>
+      </div>
+      <div className="card-body" style={{ borderTop: '1px solid var(--border)' }}>
+        <p className="meta-label">Readiness against project targets</p>
+        <table className="tbl tiers"><tbody>
+          {TIERS.map(t => {
+            const met = op.recall >= t.recall && op.fp_per_1000 <= t.fp
+            const sure = met && fhi <= t.fp
+            return (
+              <tr key={t.name}>
+                <td><strong>{t.name}</strong><br /><span className="muted">{t.rule}. {t.note}</span></td>
+                <td style={{ textAlign: 'right' }}><span className={`tag ${met ? 'ok' : 'no'}`}>{met ? (sure ? 'Met' : 'Met (interval overlaps)') : 'Not met'}</span></td>
+              </tr>
+            )
+          })}
+        </tbody></table>
+        <p className="hint">Targets are this project's own, not an industry standard. Public data has no marketing mail, receipts or corporate mail,
+          so false alarms on those are unmeasured; treat "Met" as "not disproved by this data".</p>
+      </div>
+    </div>
+  )
+}
+
 // ── Page ────────────────────────────────────────────────────────────────────
 export default function Benchmarks({ theme }) {
   const [info, setInfo] = useState(null)
   const [saved, setSaved] = useState({})
   const [source, setSource] = useState('private_dev')
   const [split, setSplit] = useState('test')
-  const [n, setN] = useState(200)
+  const [n, setN] = useState(400)
   const [spam, setSpam] = useState(false)
   const [custom, setCustom] = useState(null)         // { name, rows, summary } | { error }
   const [job, setJob] = useState(null)
@@ -126,7 +185,9 @@ export default function Benchmarks({ theme }) {
   const dlPoll = useRef(null)
 
   const loadInfo = useCallback(() => api.benchDatasets().then(setInfo).catch(() => setError('Could not reach the API.')), [])
-  const loadSaved = useCallback(() => api.benchResults().then(setSaved).catch(() => {}), [])
+  const loadSaved = useCallback(() => api.benchResults()
+    .then(r => setSaved(Object.fromEntries(Object.entries(r).filter(([, v]) => v?.schema >= 2))))
+    .catch(() => {}), [])
 
   useEffect(() => { loadInfo(); loadSaved(); return () => { clearTimeout(poll.current); clearTimeout(dlPoll.current) } }, [loadInfo, loadSaved])
 
@@ -149,8 +210,7 @@ export default function Benchmarks({ theme }) {
   const isSaved = !!shown && !fresh
 
   const op = shown?.operating_points?.[cutoff]
-  const spamNeeded = source === 'real' && spam
-  const realReady = !!real && real.files.filter(f => f.required).every(f => f.present) && (!spamNeeded || real.files.find(f => f.id === 'spam')?.present)
+  const realReady = !!real?.ready?.[split] && (!spam || real.files.find(f => f.id === 'spam')?.present)
 
   const canRun = !running && !downloading && (
     source.startsWith('private') || (source === 'real' && realReady) || (source === 'custom' && custom?.rows))
@@ -175,9 +235,9 @@ export default function Benchmarks({ theme }) {
     } catch (e) { setError(e.message) }
   }
 
-  const startDownload = async () => {
+  const startDownload = async group => {
     setError('')
-    try { await api.benchDownload(true); loadInfo() } catch (e) { setError(e.message) }
+    try { await api.benchDownload(group); loadInfo() } catch (e) { setError(e.message) }
   }
   const removeReal = async () => {
     setError('')
@@ -209,7 +269,7 @@ export default function Benchmarks({ theme }) {
   const privateList = info?.private ?? []
   const note = useMemo(() => {
     if (!shown) return null
-    if (shown.kind === 'real') return 'Public corpora from 2002–2015 (Nazario phishing; SpamAssassin ham). The "test" half was not used to build the rules. Near-duplicate campaigns mean results can be slightly optimistic.'
+    if (shown.kind === 'real') return 'Phishing: J. Nazario corpus (CC BY 4.0). Legitimate mail: 2002-03 SpamAssassin and 2025 Apache mailing lists, so marketing mail and receipts are not represented. The test split is recent phishing (2023-2025), held out in time: rules were tuned on older years only. Near-duplicate campaigns can make results slightly optimistic.'
     if (shown.kind === 'private') return 'Synthetic emails written by this project. They are a regression baseline and a check of the rule logic, not a real-world accuracy estimate.'
     return 'Your own labelled file. Accuracy here reflects how closely it resembles the detector\'s inputs and how well the labels match the truth.'
   }, [shown])
@@ -253,28 +313,46 @@ export default function Benchmarks({ theme }) {
 
             {source === 'real' && real && (
               <div className="src-detail">
-                <ul className="file-list">
-                  {real.files.map(f => (
-                    <li key={f.id}>
-                      <span className={`notice-dot ${f.present ? 'ok' : ''}`} />
-                      <a href={f.url} target="_blank" rel="noreferrer">{f.name}</a>
-                      <span className="muted">{f.present ? mb(f.bytes) : f.required ? 'not downloaded' : 'optional'}</span>
-                    </li>
-                  ))}
-                </ul>
-                {downloading ? (
+                {['core', 'recent', 'optional'].map(g => {
+                  const files = real.files.filter(f => f.group === g)
+                  const missing = files.some(f => !f.present)
+                  return (
+                    <div key={g} className="file-group">
+                      <details className="files">
+                        <summary>
+                          <span className={`notice-dot ${missing ? '' : 'ok'}`} />
+                          <span>{g === 'optional' ? 'Optional: SpamAssassin spam (reported separately)' : real.groups[g]}</span>
+                          <span className="muted">{files.filter(f => f.present).length}/{files.length}</span>
+                        </summary>
+                        <ul className="file-list">
+                          {files.map(f => (
+                            <li key={f.id}>
+                              <span className={`notice-dot ${f.present ? 'ok' : ''}`} />
+                              <a href={f.url} target="_blank" rel="noreferrer">{f.name}</a>
+                              <span className="muted">{f.present ? mb(f.bytes) : f.role === 'hash' ? 'both splits' : f.role}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                      {!downloading && missing && (
+                        <div className="btn-row">
+                          <button type="button" className="btn btn-ghost btn-sm" onClick={() => startDownload(g)}>
+                            Download {g === 'core' ? 'core set' : g === 'recent' ? 'recent set' : 'spam'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+                {downloading && (
                   <div>
                     <div className="progress"><div style={{ width: `${dlPct}%` }} /></div>
-                    <p className="hint">Downloading {real.download.current || '…'} {dlPct ? `(${dlPct}%)` : ''}</p>
+                    <p className="hint">Downloading {real.download.current || '…'} ({real.download.file_index}/{real.download.file_count}) {dlPct ? `${dlPct}%` : ''}</p>
                   </div>
-                ) : (
+                )}
+                {!downloading && real.files.some(f => f.present) && (
                   <div className="btn-row">
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={startDownload}>
-                      {real.files.every(f => f.present) ? 'Re-check files' : 'Download datasets (~12 MB)'}
-                    </button>
-                    {real.files.some(f => f.present) && (
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={removeReal}>Delete downloaded files</button>
-                    )}
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={removeReal}>Delete downloaded files</button>
                   </div>
                 )}
                 {real.download.state === 'error' && <div className="form-error">{real.download.error}</div>}
@@ -282,13 +360,14 @@ export default function Benchmarks({ theme }) {
 
                 <div className="form-group">
                   <p className="label">Which part</p>
-                  <Seg label="Corpus half" value={split} onChange={setSplit} options={[
-                    { value: 'test', label: 'Test half' }, { value: 'dev', label: 'Dev half' }, { value: 'all', label: 'All' }]} />
-                  <p className="hint">Each corpus is split in two by a fixed hash. The rules were tuned looking at the dev half only.</p>
+                  <Seg label="Corpus part" value={split} onChange={setSplit} options={[
+                    { value: 'test', label: 'Test (recent)' }, { value: 'dev', label: 'Dev (older)' }, { value: 'all', label: 'All' }]} />
+                  <p className="hint">{real.splits[split]}</p>
+                  {!real.ready[split] && <p className="hint">Download the files above to run this part.</p>}
                 </div>
                 <div className="form-group">
                   <p className="label">Emails per class</p>
-                  <Seg label="Size" value={n} onChange={setN} options={[100, 200, 400, 1000].map(v => ({ value: v, label: String(v) }))} />
+                  <Seg label="Size" value={n} onChange={setN} options={[200, 400, 800, 1500].map(v => ({ value: v, label: String(v) }))} />
                 </div>
                 <label className="check">
                   <input type="checkbox" checked={spam} onChange={e => setSpam(e.target.checked)} />
@@ -346,10 +425,11 @@ export default function Benchmarks({ theme }) {
               <div className="card">
                 <div className="card-hd">
                   <div>
-                    <h3 className="card-title">{shown.name}{shown.kind === 'real' ? ` · ${shown.options?.split ?? ''} half` : ''}</h3>
+                    <h3 className="card-title">{shown.name}{shown.kind === 'real' ? ` · ${({ test: 'test split (2023–25 phishing)', dev: 'dev split (2015–22 phishing)', all: 'all' })[shown.options?.split] ?? ''}` : ''}</h3>
                     <p className="card-sub">
                       {shown.counts.phishing} phishing · {shown.counts.legit} legit
                       {shown.counts.spam ? ` · ${shown.counts.spam} spam` : ''} · {shown.duration_s}s · {when(shown.finished_at)}
+                      {shown.latency_ms ? ` · ${shown.latency_ms.p50} ms median / ${shown.latency_ms.p95} ms p95 per email` : ''}
                       {isSaved ? ' · last saved run' : ''}
                     </p>
                   </div>
@@ -359,7 +439,7 @@ export default function Benchmarks({ theme }) {
                 <div className="stat-grid" style={{ border: 0, borderRadius: 0, marginBottom: 0 }}>
                   <Metric label="Accuracy" value={pct(op.accuracy)} note={`${op.tp + op.tn} of ${op.n} correct`} />
                   <Metric label="Precision" value={pct(op.precision)} note="Flagged that were phishing" />
-                  <Metric label="Recall" value={pct(op.recall)} note="Phishing that was caught" />
+                  <Metric label="Recall" value={pct(op.recall)} note={`95% CI ${pct(op.recall_ci[0])}–${pct(op.recall_ci[1])}`} />
                   <Metric label="F1 score" value={pct(op.f1)} note={shown.auc != null ? `ROC AUC ${shown.auc.toFixed(3)}` : ''} />
                 </div>
                 <div className="card-body cm-row">
@@ -382,11 +462,33 @@ export default function Benchmarks({ theme }) {
 
               {note && <div className="note">{note}</div>}
 
+              {shown.kind !== 'private' && <RealWorld shown={shown} op={shown.operating_points.medium_or_above} />}
+
               <div className="card">
                 <div className="card-hd"><h3 className="card-title">Cut-off sweep</h3>
                   <p className="card-sub">Trade-off as the score needed to flag an email changes</p></div>
                 <div className="chart-body"><ThresholdChart sweep={shown.sweep} theme={theme} /></div>
               </div>
+
+              {shown.per_source?.length > 0 && (
+                <div className="card">
+                  <div className="card-hd"><h3 className="card-title">By source</h3>
+                    <p className="card-sub">Share flagged at Medium +, with 95% interval</p></div>
+                  <div className="tbl-wrap">
+                    <table className="tbl">
+                      <thead><tr><th>Source</th><th>Truth</th><th>Emails</th><th>Flagged</th></tr></thead>
+                      <tbody>
+                        {shown.per_source.map(r => (
+                          <tr key={r.source}>
+                            <td>{r.name}</td><td className="muted">{r.label}</td><td className="muted">{r.n}</td>
+                            <td>{pct(r.rate)} <span className="muted">({pct(r.ci[0])}–{pct(r.ci[1])})</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               {cats.length > 0 ? (
                 <div className="card">

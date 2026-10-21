@@ -42,7 +42,9 @@ def test_datasets_lists_bundled_sets_and_real_status(client):
     ids = {p["id"] for p in d["private"]}
     assert {"private_dev", "private_holdout"} <= ids
     assert all(p["samples"] == p["phishing"] + p["legit"] for p in d["private"])
-    assert {f["id"] for f in d["real"]["files"]} == {"phishing", "ham", "spam"}
+    ids_real = {f["id"] for f in d["real"]["files"]}
+    assert {"phish_2023", "phish_2024", "phish_2025", "ham_easy", "ham_hard", "spam"} <= ids_real
+    assert {f["group"] for f in d["real"]["files"]} == {"core", "recent", "optional"}
     assert d["limits"]["custom_max_rows"] > 0
 
 
@@ -76,7 +78,7 @@ def test_invalid_runs_are_rejected(client, body):
 
 
 def test_real_run_requires_download(client, monkeypatch):
-    monkeypatch.setattr(B, "_real_ready", lambda include_spam=False: False)
+    monkeypatch.setattr(B, "_split_ready", lambda split, include_spam=False: False)
     r = client.post("/api/benchmarks/run", json={"dataset": "real"})
     assert r.status_code == 400 and "Download" in r.get_json()["error"]
 
@@ -91,7 +93,7 @@ def test_unknown_job_is_404(client):
 
 
 def test_real_n_is_clamped(monkeypatch):
-    monkeypatch.setattr(B, "_real_ready", lambda include_spam=False: True)
+    monkeypatch.setattr(B, "_split_ready", lambda split, include_spam=False: True)
     assert B._validate_spec({"dataset": "real", "n": 10 ** 9})["n"] == B.LIMITS["real_max_n"]
     assert B._validate_spec({"dataset": "real", "n": 1})["n"] == B.LIMITS["real_min_n"]
     with pytest.raises(ValueError):
@@ -101,4 +103,5 @@ def test_real_n_is_clamped(monkeypatch):
 def test_download_is_limited_to_fixed_sources():
     from benchmark import corpora
     assert all(s["url"].startswith("https://") for s in corpora.SOURCES.values())
-    assert {s["url"].split("/")[2] for s in corpora.SOURCES.values()} == {"monkey.org", "spamassassin.apache.org"}
+    assert {s["url"].split("/")[2] for s in corpora.SOURCES.values()} == {
+        "monkey.org", "spamassassin.apache.org", "mail-archives.apache.org"}

@@ -30,14 +30,34 @@ export default function Analyzer() {
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
   const [reported, setReported] = useState(false)
+  const [extras, setExtras] = useState(null)      // header-derived data from an imported .eml
+  const fileRef = useRef(null)
   const resultsRef = useRef(null)
 
   const set = key => e => setForm(f => ({ ...f, [key]: e.target.value }))
 
   const loadSample = () => {
     setForm({ sender: SAMPLE.sender, replyto: SAMPLE.replyto, subject: SAMPLE.subject, content: SAMPLE.content })
+    setExtras(null)
     setResult(null)
     setReported(false)
+  }
+
+  const importEml = async e => {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    if (!f) return
+    setError('')
+    try {
+      if (f.size > 5_000_000) throw new Error('That file is larger than 5 MB.')
+      const p = await api.parse(await f.text())
+      setForm({ sender: p.sender || '', replyto: p.reply_to || '', subject: p.subject || '', content: p.content || '' })
+      const { auth_results, return_path, recipient, attachments, list_id } = p
+      setExtras({ auth_results, return_path, recipient, attachments, list_id })
+      setResult(null); setReported(false)
+    } catch (err) {
+      setError(err.message || 'Could not read that file.')
+    }
   }
 
   const submit = async e => {
@@ -52,6 +72,7 @@ export default function Analyzer() {
         reply_to: form.replyto,
         subject:  form.subject,
         content:  form.content,
+        ...(extras || {}),
       })
       setResult(res)
       setReported(false)
@@ -82,7 +103,11 @@ export default function Analyzer() {
           <h1 className="page-title">Analyze</h1>
           <p className="page-sub">Check an email's sender, links and content for phishing signals.</p>
         </div>
-        <button className="btn btn-ghost" onClick={loadSample}>Load sample email</button>
+        <div className="btn-row" style={{ marginTop: 0 }}>
+          <input ref={fileRef} type="file" accept=".eml,.txt,message/rfc822" hidden onChange={importEml} />
+          <button className="btn btn-ghost" onClick={() => fileRef.current?.click()}>Import .eml</button>
+          <button className="btn btn-ghost" onClick={loadSample}>Load sample email</button>
+        </div>
       </header>
 
       <div className="analyze-layout">
@@ -109,9 +134,18 @@ export default function Analyzer() {
               <textarea className="input textarea" value={form.content} onChange={set('content')}
                 placeholder="Paste email content here. Supports HTML for link-mismatch detection." />
             </div>
-            {error && (
-              <div className="form-error">{error}</div>
+            {extras && (
+              <div className="extras">
+                <p className="meta-label">From the message headers</p>
+                {extras.auth_results && <p><span>Authentication</span><code>{extras.auth_results}</code></p>}
+                {extras.return_path && <p><span>Return-Path</span><code>{extras.return_path}</code></p>}
+                {extras.recipient && <p><span>Delivered to</span><code>{extras.recipient}</code></p>}
+                {extras.attachments?.length > 0 && <p><span>Attachments</span><code>{extras.attachments.map(a => a.filename).join(', ')}</code></p>}
+                {extras.list_id && <p><span>Mailing list</span><code>yes</code></p>}
+                <button type="button" className="link-btn" onClick={() => setExtras(null)}>Ignore header data</button>
+              </div>
             )}
+            {error && <div className="form-error">{error}</div>}
             <div className="form-footer">
               <button type="submit" className="btn btn-primary" disabled={loading}>
                 {loading && <span className="spinner" />}
