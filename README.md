@@ -9,6 +9,7 @@
 ![Flask](https://img.shields.io/badge/flask-3.0-000000?logo=flask&logoColor=white)
 ![React](https://img.shields.io/badge/react-18-61DAFB?logo=react&logoColor=black)
 ![Tests](https://img.shields.io/badge/tests-46%20passing-2ea043)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 <img src="docs/screenshots/dashboard-dark.png" alt="PhishGuard dashboard (dark theme)" width="900">
 
@@ -27,7 +28,7 @@ detector is deterministic, runs offline, and is measured against both synthetic 
 - [Features](#features) · [Screenshots](#screenshots) · [How it works](#how-it-works)
 - [Quick start](#quick-start) · [API](#api) · [Benchmarks tab](#benchmarks-tab)
 - [Accuracy](#accuracy) · [Limitations](#limitations)
-- [Project structure](#project-structure) · [Development](#development) · [Roadmap](#roadmap) · [Acknowledgements](#acknowledgements)
+- [Project structure](#project-structure) · [Development](#development) · [Roadmap](#roadmap) · [Acknowledgements](#acknowledgements) · [License](#license)
 
 ## Features
 
@@ -279,6 +280,11 @@ To extend detection, add brands to `backend/brands.py`, add a signal in `detecto
 - [Tranco](https://tranco-list.eu/): Le Pochat et al., *Tranco: A Research-Oriented Top Sites Ranking Hardened Against Manipulation*, NDSS 2019
 - Jose Nazario's [phishing corpus](https://monkey.org/~jose/phishing/) and the [Apache SpamAssassin public corpus](https://spamassassin.apache.org/old/publiccorpus/), used for evaluation only
 - [python-whois](https://pypi.org/project/python-whois/), [Flask](https://flask.palletsprojects.com/), [React](https://react.dev/), [Vite](https://vitejs.dev/), [Chart.js](https://www.chartjs.org/)
+
+## License
+
+Released under the [MIT License](LICENSE). The public email corpora used for evaluation are not part of this
+repository and remain under their own terms.
 
 ## Disclaimer
 
