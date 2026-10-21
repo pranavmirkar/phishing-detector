@@ -4,8 +4,9 @@ Used by the dashboard's /api/benchmarks service and by the command-line scripts 
 produce identical numbers.
 """
 import os
-import random
+import pickle
 import time
+import zlib
 from collections import Counter, defaultdict
 
 from benchmark import corpora as C
@@ -17,34 +18,69 @@ REAL_SEED = 11
 
 # ── loading ───────────────────────────────────────────────────────────────────
 def present_sources(data_dir):
-    return {k: os.path.join(data_dir, v["file"]) for k, v in C.SOURCES.items()
-            if os.path.exists(os.path.join(data_dir, v["file"])) and os.path.getsize(os.path.join(data_dir, v["file"])) > 0}
+    out = {}
+    for k, v in C.SOURCES.items():
+        path = os.path.join(data_dir, v["file"])
+        if os.path.exists(path) and os.path.getsize(path) > 0:
+            out[k] = path
+    return out
+
+
+def _order(seed, s):
+    """Stable pseudo-random order: adding sources never reshuffles what was sampled before."""
+    return zlib.crc32(f"{seed}:{C.fingerprint(s)}".encode())
+
+
+def _load_source(path, kind):
+    """All parsed emails of one corpus file. Parsed once, then cached next to the data (a local pickle)."""
+    cache_dir = os.path.join(os.path.dirname(path), ".cache")
+    st = os.stat(path)
+    cache = os.path.join(cache_dir, f"{os.path.basename(path)}.{st.st_size}.{int(st.st_mtime)}.v3.pkl")
+    try:
+        with open(cache, "rb") as f:
+            return pickle.load(f)
+    except (OSError, pickle.PickleError, EOFError):
+        pass
+    items = list(C.read_source(path, kind))
+    try:
+        os.makedirs(cache_dir, exist_ok=True)
+        with open(cache, "wb") as f:
+            pickle.dump(items, f, protocol=4)
+    except OSError:
+        pass
+    return items
 
 
 def load_real(data_dir, split, n, include_spam=False, seed=REAL_SEED):
-    """Samples for a split ("dev" | "test" | "all"), at most `n` per class, plus the source ids used."""
-    rnd = random.Random(seed)
+    """Samples for a split (dev | val | test_seen | test | all), at most `n` per class, plus the source ids used."""
     have = present_sources(data_dir)
+    keep = {"dev", "val", "test_seen", "test"} if split == "all" else {split}
     pools = {"phishing": [], "legit": [], "spam": []}
     used = []
-    for key in C.wanted(split) + (["spam"] if include_spam else []):
+    for key in C.sources_for(split) + (["spam"] if include_spam else []):
         if key not in have:
             continue
         src = C.SOURCES[key]
-        items = list(C.read_source(have[key], src["kind"]))
-        if src["role"] == "hash" and split != "all":
-            items = [s for s in items if C.half(s) == split]
-        rnd.shuffle(items)
+        items = [dict(s) for s in _load_source(have[key], src["kind"]) if C.split_of(src, s) in keep]
         if src.get("cap"):
-            items = items[:src["cap"]]
+            items = sorted(items, key=lambda s: _order(seed, s))[:src["cap"]]
         for s in items:
             s["source"], s["label"], s["category"] = key, src["label"], ""
-        pools[src["label"]] += items
-        used.append(key)
-    samples = []
+        if items:
+            pools[src["label"]] += items
+            used.append(key)
+    samples, seen = [], set()
     for items in pools.values():
-        rnd.shuffle(items)
-        samples += items[:n]
+        picked = 0
+        for s in sorted(items, key=lambda s: _order(seed, s)):
+            fp = (s["label"], C.fingerprint(s))
+            if fp in seen:                       # the same email can sit in two corpus files (e.g. hard ham 2002-10 / 2003-02)
+                continue
+            seen.add(fp)
+            samples.append(s)
+            picked += 1
+            if picked >= n:
+                break
     return samples, used
 
 

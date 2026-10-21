@@ -49,6 +49,7 @@ app.register_blueprint(benchmarks_bp)
 DB = DB_PATH
 
 _hits = defaultdict(deque)
+RATE_LIMITED = ("/api/analyze", "/api/parse", "/api/matrix", "/api/intel/whois", "/api/intel/update")
 _hits_lock = threading.Lock()
 
 
@@ -58,10 +59,13 @@ def _guard():
         return None
     if API_KEY and request.headers.get("X-API-Key", "") != API_KEY:
         return jsonify({"error": "invalid or missing API key"}), 401
-    if RATE_LIMIT and request.method == "POST" and request.path in ("/api/analyze", "/api/parse"):
+    if RATE_LIMIT and request.method == "POST" and request.path in RATE_LIMITED:
         now = time.time()
         key = request.remote_addr or "?"
         with _hits_lock:
+            if len(_hits) > 5000:                      # forget idle clients so the table cannot grow forever
+                for k in [k for k, v in _hits.items() if not v or now - v[-1] > 60]:
+                    del _hits[k]
             q = _hits[key]
             while q and now - q[0] > 60:
                 q.popleft()
@@ -81,6 +85,12 @@ def _headers(resp):
 @app.errorhandler(413)
 def _too_large(_):
     return jsonify({"error": "request too large"}), 413
+
+
+def _body():
+    """JSON object body, or {} (never a list / string / null, which would crash handlers)."""
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else {}
 
 
 def _clean_extras(data):
@@ -170,8 +180,10 @@ def health():
 
 @app.route("/api/analyze", methods=["POST"])
 def analyze():
-    data = request.json or {}
-    sender = (data.get("sender") or "").strip()
+    data = _body()
+    if not isinstance(data.get("sender"), str):
+        return jsonify({"error": "sender is required"}), 400
+    sender = data["sender"].strip()
     if not sender:
         return jsonify({"error": "sender is required"}), 400
     if not EMAIL_RE.match(sender):
@@ -179,8 +191,8 @@ def analyze():
     if len(sender) > MAX_FIELD:
         return jsonify({"error": "sender too long"}), 400
 
-    data["subject"] = (data.get("subject") or "")[:MAX_FIELD]
-    data["content"] = (data.get("content") or "")[:MAX_FIELD * 12]
+    data["subject"] = data["subject"][:MAX_FIELD] if isinstance(data.get("subject"), str) else ""
+    data["content"] = data["content"][:MAX_FIELD * 12] if isinstance(data.get("content"), str) else ""
     data.update(_clean_extras(data))
 
     try:
@@ -210,7 +222,7 @@ def analyze():
 @app.route("/api/parse", methods=["POST"])
 def parse():
     """Parse a raw RFC 822 message (an .eml file or 'show original' text) into analyzable fields."""
-    data = request.get_json(silent=True) or {}
+    data = _body()
     raw = data.get("raw")
     if not isinstance(raw, str) or not raw.strip():
         return jsonify({"error": "raw (the full message including headers) is required"}), 400
@@ -251,7 +263,7 @@ def email_detail(eid):
 
 @app.route("/api/report", methods=["POST"])
 def report():
-    data     = request.json or {}
+    data     = _body()
     email_id = data.get("email_id")
     if not email_id or not isinstance(email_id, int):
         return jsonify({"error": "email_id (integer) is required"}), 400
@@ -318,10 +330,12 @@ def stats():
 @app.route("/api/matrix", methods=["POST"])
 def matrix():
     from levenshtein import get_dp_matrix, get_edit_operations, similarity_percent
-    data = request.json or {}
+    data = _body()
     s1, s2 = data.get("s1", ""), data.get("s2", "")
-    if not s1 or not s2:
-        return jsonify({"error": "s1 and s2 required"}), 400
+    if not isinstance(s1, str) or not isinstance(s2, str) or not s1 or not s2:
+        return jsonify({"error": "s1 and s2 required (strings)"}), 400
+    if len(s1) > 120 or len(s2) > 120:             # the DP matrix is len(s1) x len(s2) cells
+        return jsonify({"error": "strings are limited to 120 characters"}), 400
     return jsonify({
         "matrix_data":     get_dp_matrix(s1, s2),
         "edit_operations": get_edit_operations(s1, s2),
@@ -350,8 +364,9 @@ def intel_update():
 @app.route("/api/intel/whois", methods=["POST"])
 def intel_whois():
     """On-demand WHOIS domain age lookup (with 24 h cache)."""
-    data   = request.json or {}
-    domain = data.get("domain", "").strip().lower()
+    data   = _body()
+    domain = data.get("domain", "")
+    domain = domain.strip().lower() if isinstance(domain, str) else ""
     if not domain:
         return jsonify({"error": "domain required"}), 400
     return jsonify(check_domain_age(domain))

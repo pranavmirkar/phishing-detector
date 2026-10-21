@@ -152,7 +152,7 @@ def test_admin_display_name_with_click_prompt():
 
 
 def test_brand_mentioned_with_account_action_from_unrelated_sender():
-    r = run("care@some-shop.io", "Notice", "Your PayPal account is limited. Sign in to confirm your details.")
+    r = run("care@some-shop.io", "Notice", "Your PayPal account is limited. Sign in to confirm your details: http://x.io/a")
     assert "BRAND_MISMATCH" in types(r)
 
 

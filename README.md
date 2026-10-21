@@ -20,10 +20,11 @@ sender, failed authentication, deceptive link, risky attachment, ...) with the e
 ordinary pasted fields or a **raw `.eml` message with headers**, runs offline and deterministically, keeps your mail on
 your machine, and is benchmarked on real public phishing from 2015 to 2025, not only on data it was written against.
 
-> **Honest status.** On a locked, time-held-out test of 2023-2025 phishing, PhishGuard catches **72%** of phishing
-> and wrongly flags **2.7%** of the legitimate mail in that test. That is a useful *"take a second look"* assistant,
-> far better than where this project started, and **not** a replacement for a commercial email-security gateway.
-> The [accuracy section](#accuracy) has the full picture, including what is still bad.
+> **Honest status.** On a locked test of **unseen 2024-2025 phishing** and ~4,500 unseen legitimate emails, PhishGuard
+> catches **91.6%** of phishing and wrongly flags **1.4%** of the legitimate mail in that test (13.9 per 1,000). That
+> makes it a solid *"take a second look"* assistant, but it is **not** a replacement for a commercial email-security
+> gateway, and the legitimate test mail is narrow (no marketing mail or receipts). The [accuracy section](#accuracy)
+> shows exactly what was measured, what was not, and where it is still weak.
 
 ## Contents
 
@@ -43,7 +44,9 @@ your machine, and is benchmarked on real public phishing from 2015 to 2025, not 
 | **Links** | Visible URL vs real destination (by registrable domain), mail that claims a brand but never links to it, free-hosting platforms used for fake logins, shorteners, raw IPs |
 | **Attachments** | HTML attachments, executables and scripts, double extensions, archives from unverified senders (names only; attachments are never opened) |
 | **Forms** | Password / card fields inside the message body |
-| **Domain age** | WHOIS registration age, cached for 24 h |
+| **Link destinations** | Share of links to obscure (non-top-50K) domains, plain-http links, long / deep URLs, the recipient's address inside a URL |
+| **Domain age** | WHOIS registration age (bounded wait, cached, failures remembered) |
+| **Learned scoring** | A small tree model combines all of the above into the final score ([model card](backend/MODEL_CARD.md)); rules still explain every verdict |
 
 Plus: light/dark dashboard, scan history, an interactive Levenshtein matrix, a one-click **Benchmarks** tab, API-key
 auth, rate limiting, optional "do not store message bodies" mode, Docker packaging, and an automated test suite.
@@ -90,9 +93,12 @@ flowchart LR
 2. **Establish identity.** A domain is *trusted* only if it is in the Tranco top-50K and is not a free-mail provider.
    Trust is never inherited by look-alike characters.
 3. **Compare** with the top-1K domains plus 80 curated, frequently phished brands (banks, couriers, payments).
-4. **Score** each signal with a fixed weight, capped at 100: **LOW** (< 25), **MEDIUM** (25-54), **HIGH** (>= 55).
-   Spam-looking mail alone can never reach MEDIUM: a message needs at least one phishing-specific indicator.
-5. **Explain.** Every finding carries a severity, message and detail.
+4. **Score.** Every signal gets rule points. A learned model (gradient-boosted trees, evaluated in pure Python) reads those
+   points plus era-neutral lexical and link features and produces the 0-100 score: **LOW** (< 25), **MEDIUM** (25-54),
+   **HIGH** (>= 55), where MEDIUM is the cut-off that flagged ~1% of legitimate training mail and HIGH ~0.1%. For
+   signals the training data cannot judge (fewer than 20 phishing examples) the rule points are kept as a floor.
+   `PG_MODEL=off` uses the rule score alone.
+5. **Explain.** Every finding carries a severity, message and detail; the model changes the score, not the evidence.
 
 Brand, free-mail and TLD data live in [`backend/brands.py`](backend/brands.py); scoring is in
 [`backend/detector.py`](backend/detector.py); raw-message parsing is in [`backend/emailparse.py`](backend/emailparse.py).
@@ -137,6 +143,8 @@ All optional environment variables:
 | `PG_RATE_LIMIT` | `120` | Analyses per minute per client (`0` = off) |
 | `PG_STORE_CONTENT` | `1` | `0` = never keep message bodies in history |
 | `PG_OWN_DOMAINS` | *(none)* | Your organisation's domains, e.g. `example.com,example.org` |
+| `PG_MODEL` | bundled `model_v1.json` | `off` = rule score only, or a path to another model file |
+| `PG_WHOIS` / `PG_WHOIS_TIMEOUT` | on / `3` | `PG_WHOIS=0` disables WHOIS; the wait per lookup is hard-bounded (seconds) |
 | `PG_CORS_ORIGINS` | local dev servers | Comma-separated allowed web origins |
 | `PG_TRUST_PROXY` | `0` | `1` behind nginx / a load balancer, so rate limits use the real client IP |
 | `PG_HOST` / `PG_PORT` | `127.0.0.1` / `5000` | Bind address for `python app.py`. Debug mode is off unless `PG_DEBUG=1` |
@@ -200,7 +208,7 @@ misclassified email.
 | Source | Details |
 |---|---|
 | **Private datasets** | Two bundled synthetic sets (306 and 258 emails) |
-| **Real public datasets** | Download on request (one click per group, fixed URLs, never redistributed) into git-ignored storage. *Core* (~10 MB) and *Recent* (~85 MB). Choose the **Test** split (2023-2025 phishing), **Dev** split (2015-2022) or both |
+| **Real public datasets** | Download on request (one click per group, fixed URLs, never redistributed) into git-ignored storage. *Core* (~10 MB) and *Recent* (~85 MB). Choose the **locked Test** split (unseen 2024-2025), **Dev**, **Val**, the **Seen** split or all. Groups: Core, Recent, Extended (validation years), Business (Enron sample, streamed) |
 | **Your own file** | `.jsonl` / `.json` / `.csv` with `label` (`phishing`/`legit`), `sender`, `subject`, `content` and optionally `reply_to`, `auth_results`, `return_path`, `recipient`, `category`. Up to 2,000 rows, processed in memory |
 
 The same engine runs from the command line:
@@ -208,122 +216,128 @@ The same engine runs from the command line:
 ```bash
 cd backend
 python benchmark/run_benchmark.py                          # bundled synthetic sets
-python -P benchmark/eval_real.py --split both              # real corpora: dev, then test at a dev-calibrated cut-off
+python -P benchmark/eval_real.py --split test              # real corpora: the locked test (also: dev, val, test_seen, both)
 python -P benchmark/eval_real.py --split test --drop recipient,auth_results   # ablation: blank out signals
+PG_MODEL=off python -P benchmark/eval_real.py --split test                  # rule score only
 ```
 
 ## Accuracy
 
-Positive class = phishing; an email is flagged at risk score >= 25 (MEDIUM+). **Always read these next to the
+Positive class = phishing; an email is flagged at risk score >= 25 (MEDIUM+). **Read this next to the
 [limitations](#limitations).**
 
-### The test that matters: recent real phishing, time-held-out
+### Protocol
 
-| Split | Phishing | Legitimate |
+| Split | Phishing (Nazario corpus, by **year**) | Legitimate (by **sender address**) |
 |---|---|---|
-| **Dev** (rules were diagnosed here) | Nazario 2015, 2018, 2019, 2022 | SpamAssassin ham and hard ham (dev half), Apache mailing lists 2025 (5 list-months) |
-| **Test** (locked; never inspected during tuning) | **Nazario 2023, 2024, 2025** | SpamAssassin ham and hard ham (test half), Apache mailing lists 2025 (5 other list-months) |
+| **Dev** (rules diagnosed here, model trained here) | 2015, 2018, 2019, 2022 | a quarter of SpamAssassin ham / hard ham, Enron corporate mail, Apache lists 2025 |
+| **Val** (iteration checks, model trained here) | 2016, 2017, 2020, 2021, 2023 | another quarter, other lists |
+| **Test: locked** | **2024, 2025, never scored or inspected** | the remaining half of every legitimate source |
 
-600 phishing and 600 legitimate emails per split (seeded sample). The three detector versions below are the original
-project, the previous commit, and now:
+Legitimate mail from one sender is never split across train and test, so near-duplicate threads cannot leak. The learned
+model never saw anything later than 2023. Thresholds were calibrated on out-of-fold training predictions, not on the test.
 
-| Test split (2023-25 phishing) | Original | Previous | **Now** |
-|---|---|---|---|
-| Phishing caught (recall) | 34.2% | 50.7% | **72.3%** (95% CI 68.6-75.8) |
-| **False alarms per 1,000 legitimate emails** | 350 | 55 | **26.7** (16.5-42.9) |
-| Precision (balanced test set) | 49.4% | 90.2% | **96.4%** |
-| Precision if 1 email in 100 is phishing | 1.0% | 8.5% | **21.5%** |
-| HIGH-only: recall / false alarms per 1,000 | 4.2% / 40 | 21.2% / 15 | **44.7% / 8.3** |
-| Development split: recall / false alarms per 1,000 | 41.2% / 345 | 63.8% / 35 | **83.2% / 15.0** |
+### Result: locked test (418 unseen phishing, 4,542 unseen legitimate)
 
-Recall on the test split by year: **2023 80.1%**, **2024 78.3%**, **2025 61.1%**. The newest phishing is caught least,
-so expect further decay as attackers adapt.
+| | Original | Previous | Rules only (now) | **Now (rules + model)** |
+|---|---|---|---|---|
+| Phishing caught (recall) | 33.3% | 50.7% | 72.0% | **91.6%** (95% CI 88.6-93.9) |
+| **Legitimate mail wrongly flagged, per 1,000** | 618 | 27.3 | 16.7 | **13.9** (10.9-17.7) |
+| Precision if 1 email in 100 is phishing | 0.5% | 15.8% | 30.3% | **40.0%** |
+| HIGH only: recall / false alarms per 1,000 | 3.3% / 461 | 15.1% / 2.0 | 46.4% / 3.1 | **83.7% / 2.2** |
+| Median / p95 time per email | 88 / 170 ms | 51 / 121 ms | 28 / 42 ms | **28 / 45 ms** |
 
-**Which signals carry the result** (test split; false alarms stay between 26.7 and 28.3 per 1,000 in every row):
+Recall by year: **2024 91.5%, 2025 91.7%**. False alarms by source: Enron corporate mail 1.7%, SpamAssassin ham 0.4-0.8%,
+**SpamAssassin hard ham (legitimate mail that looks like spam) 4.0%**, Apache lists 0-5.3%.
 
-| Inputs available to the detector | Recall |
-|---|---|
-| Everything (full `.eml` and the recipient's domain) | 72.3% |
-| Without knowing the recipient's organisation | 61.0% |
-| Body, sender and subject only (no headers at all) | 55.8% |
+**Which inputs matter** (same locked test): everything available 91.6% / 13.9 per 1,000; recipient's organisation
+unknown 90.9% / 13.0; **body, sender and subject only (no headers at all) 86.1% / 13.7**. HIGH-only recall falls from
+83.7% to 73.2% without headers.
 
-So most of the recent gain depends on real message headers and knowing whose mailbox it is, which is exactly what the
-`.eml` import and `PG_OWN_DOMAINS` provide. A tool that only sees pasted text is closer to 56%.
-
-**Strict cut-offs do not transfer perfectly.** A cut-off picked on dev for <= 0.5% false alarms (score 52) gave
-**46.5% recall and 13.3 false alarms per 1,000** on test: the false-alarm budget was missed by about 2.6x.
+**Calibration.** MEDIUM was set to flag 1% of legitimate training mail and flagged 1.4% on the test; HIGH was set to
+0.1% and flagged 0.2%. Budgets transfer to within about 1.5-2x, not exactly.
 
 ### Is it real-world acceptable?
 
-The Benchmarks tab scores the detector against three project-defined tiers (these are this project's own targets, not
-an industry standard):
+Scored against three project-defined tiers (this project's own targets, not an industry standard):
 
-| Tier | Target | Result on the test split |
+| Tier | Target | Locked test result |
 |---|---|---|
-| Warning assistant | >= 70% caught, <= 20 false alarms per 1,000 | Recall met (72.3%); **false alarms not met (26.7, interval 16.5-42.9)** |
-| Inbox filter | >= 90% caught, <= 1 false alarm per 1,000 | **Not met** |
+| Warning assistant | >= 70% caught, <= 20 false alarms per 1,000 | **Met** (91.6%; 13.9, interval 10.9-17.7) |
+| Inbox filter | >= 90% caught, <= 1 false alarm per 1,000 | **Not met** (13.9 per 1,000; HIGH 2.2 per 1,000 with 83.7% caught) |
 | Production gateway | >= 99% caught, <= 0.1 false alarms per 1,000 | **Not met** (roughly where commercial products operate) |
 
 **Bottom line:** use it as a second opinion that a person reviews: MEDIUM = "look twice", HIGH = "probably phishing"
-(98% precision on the balanced test set, but only 44.7% recall). Do not use it to hide or delete mail automatically.
+(97% precision on the balanced test set, 83.7% recall). Do not use it to hide or delete mail automatically, and do not
+read "Met" as a promise about your inbox: the legitimate test mail contains no marketing mail or receipts.
 
 ### Synthetic sets
 
-Written by the project author, so high scores are expected and say little. They are regression baselines.
+Written by the project author, so high scores are expected and say little. They are regression baselines, and they are
+how the learned model's blind spots were found (see below).
 
 | Set | Original (accuracy) | Now (accuracy / F1) |
 |---|---|---|
-| Development, 306 emails | 85.0% | 100% / 100% (used to guide fixes; not a real-world claim) |
-| Second set, 258 emails | 51.9% | 97.3% / 97.8% |
+| Development, 306 emails | 85.0% | 98.0% / 98.4% |
+| Second set, 258 emails | 51.9% | 95.7% / 96.6% |
 
 Reports: [`REPORT.md`](backend/benchmark/REPORT.md), [`REPORT_holdout.md`](backend/benchmark/REPORT_holdout.md),
-[`results_real_test.json`](backend/benchmark/results_real_test.json), [`results_real_dev.json`](backend/benchmark/results_real_dev.json).
+[`results_real_test.json`](backend/benchmark/results_real_test.json). Dev and Val numbers are not published as accuracy:
+the model was trained on them.
 
-### Metric definitions
+### How the numbers came about (what was and was not independent)
 
-- **False alarms per 1,000** = legitimate emails flagged per 1,000, with a 95% Wilson interval.
-- **Precision at 1% prevalence** = precision if only 1 in 100 emails were phishing. Balanced test sets overstate
-  precision: in a real inbox most flags would be false at this accuracy.
-- **Recall at a false-alarm budget** picks the cut-off on the data itself, so on one set it is optimistic; the dev to
-  test row above is the honest version.
+- The first learned model scored **worse than the rules on the synthetic sets** (second set 97% to 80%): it had never
+  seen delivery-fee scams, giveaways or text-only fraud. That is why signals with too little training support keep a
+  rule floor. This choice was made from the synthetic and `test_seen` data **after** the pure model had scored 91.6% /
+  11.2 per 1,000 on the locked test; the floor costs 2.7 false alarms per 1,000 at the same recall. Both numbers are
+  recorded here.
+- Two emails crashed the detector on the first test run (malformed links). The bugs were fixed and the test re-run; no
+  rule was tuned on test emails.
+- When legitimate mail was re-split by sender, some legitimate emails that had been inspected earlier (while fixing
+  false alarms) moved into the test split. Those fixes were generic (e.g. "a brand mention needs a link"), and the test
+  has 4,542 legitimate emails, but the test is not perfectly untouched.
+- Nazario's phishing is credential phishing aimed at one mailbox; near-duplicate campaigns can flatter results.
 
 ## Limitations
 
-- **Legitimate mail in the public corpora is narrow:** 2002-03 personal and list mail and 2025 developer mailing lists.
-  Marketing mail, receipts, corporate mail and newsletters are **not represented**, so the false-alarm rate on a real
-  inbox is unmeasured and probably higher. The hardest legitimate bucket we have (SpamAssassin "hard ham", mail that
-  looks like spam) is flagged 12.7% of the time.
-- **Authentication false alarms are unmeasured:** the legitimate corpora carry no SPF results, so wrongly flagged
-  forwarded or mailing-list mail cannot be counted. Attackers also usually pass their *own* SPF, so authentication
-  catches forged brands, not all phishing.
-- **Single-victim phishing corpus.** Nazario's phishing all targets one mailbox, which makes organisation-impersonation
-  look better than it will for diverse recipients (see the ablation). Near-duplicate campaigns flatter results slightly.
-- **Forged mail from a brand's real address with a clean body** and no authentication data is invisible. Mail with
-  no text (images, QR codes) cannot be read.
-- Recall falls on newer phishing (80% for 2023, 61% for 2025) and rules need continued maintenance.
+- **Legitimate mail in the public corpora is narrow:** 2002-03 personal and list mail, 1999-2002 corporate mail and 2025
+  developer lists. Marketing mail, receipts, newsletters and consumer webmail are **not represented**. False alarms on a
+  real inbox are unmeasured and probably higher, especially from the link-destination features.
+- **It learns this data.** Attack styles the corpus barely contains (advance-fee scams, delivery-fee lures, BEC) rely on
+  the rule floor, not learning. The data is mostly credential phishing.
+- **Forged mail from a brand's real address with a clean body** and no authentication data is still hard. Mail whose
+  content is an image or QR code cannot be read.
+- **Drift.** Recall on the newest year was no lower than the previous one here, but phishing changes constantly; retrain
+  regularly (see the [model card](backend/MODEL_CARD.md)). Link features lean on the current Tranco list.
+- **Evasion.** Attackers who learn the features can adapt; the learned layer is not hardened.
+- **Authentication false alarms are unmeasured** (the legitimate corpora carry no SPF results).
 - WHOIS domain-age scoring is off in all benchmarks, so it is unmeasured.
 - The **Gmail extension** has its own older, simpler JavaScript implementation. None of the figures here apply to it.
-- Rule-based: figures describe these datasets, not future attacks.
+- Measured on emails in English (and a few other languages in the phishing set); a small multilingual lexicon covers
+  non-English lures but false alarms on non-English legitimate mail are unmeasured.
 
 ## Development
 
 ```bash
-cd backend && pip install pytest && python -m pytest -q      # offline, < 3 s
+cd backend && pip install -r requirements-dev.txt && python -m pytest -q      # offline, ~5 s
 cd frontend && npm run build
 ```
 
 Tests replace the trusted-domain list, lookalike pool and WHOIS with small fakes and use a throw-away database, so they
 need no network. To extend detection: add brands to `backend/brands.py`, add a signal in `detector.py` with a test, then
-run `eval_real.py --split dev` and compare. Do **not** tune on the test split; if you do, say so next to the numbers.
+run `eval_real.py --split val` and compare. If rules change, retrain the model (`python -P benchmark/train_model.py`).
+Do **not** tune on the test split; if you do, say so next to the numbers.
 
 ```
 backend/
   app.py                  API: auth, rate limit, analyze, parse, history, stats
-  detector.py             Scoring engine          emailparse.py   Raw .eml parser
+  detector.py             Rule engine             emailparse.py   Raw .eml parser
+  model.py + model_v1.json   Learned scoring layer (pure Python)   MODEL_CARD.md
   brands.py               Brand / free-mail / TLD data
   domain_intel.py         Tranco list + WHOIS cache (cached lookups)
   benchmark_service.py    /api/benchmarks (jobs, downloads)
-  benchmark/              engine, metrics, corpora catalogue, CLI runners, datasets, reports
+  benchmark/              engine, metrics, corpora catalogue, train_model.py, CLI runners, datasets, reports
   tests/                  detector, parser, API and benchmark tests
 frontend/src/             pages (Dashboard, Analyze, History, Benchmarks, Patterns), components, theme
 extension/                Manifest V3 Gmail extension (separate implementation)
@@ -334,7 +348,7 @@ docker-compose.yml        backend (gunicorn) + web (nginx)
 ## Roadmap
 
 - Gmail extension that calls the API (so it gets the new rules and header data)
-- Per-signal weight calibration with a learned model on a larger, more diverse labelled set, and a calibrated probability
+- Retrain on a larger, more diverse labelled set including marketing mail and receipts; calibrated probabilities
 - A modern consumer-mail legitimate set (newsletters, receipts), and image/QR-code lure detection
 - A feedback loop: user-confirmed phishing / false alarms stored and fed back into evaluation
 

@@ -44,7 +44,7 @@ def test_datasets_lists_bundled_sets_and_real_status(client):
     assert all(p["samples"] == p["phishing"] + p["legit"] for p in d["private"])
     ids_real = {f["id"] for f in d["real"]["files"]}
     assert {"phish_2023", "phish_2024", "phish_2025", "ham_easy", "ham_hard", "spam"} <= ids_real
-    assert {f["group"] for f in d["real"]["files"]} == {"core", "recent", "optional"}
+    assert {f["group"] for f in d["real"]["files"]} == {"core", "recent", "extended", "business", "optional"}
     assert d["limits"]["custom_max_rows"] > 0
 
 
@@ -104,4 +104,4 @@ def test_download_is_limited_to_fixed_sources():
     from benchmark import corpora
     assert all(s["url"].startswith("https://") for s in corpora.SOURCES.values())
     assert {s["url"].split("/")[2] for s in corpora.SOURCES.values()} == {
-        "monkey.org", "spamassassin.apache.org", "mail-archives.apache.org"}
+        "monkey.org", "spamassassin.apache.org", "mail-archives.apache.org", "www.cs.cmu.edu"}

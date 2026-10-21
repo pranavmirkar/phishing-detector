@@ -82,7 +82,8 @@ def show(name, res):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--split", choices=["dev", "test", "both", "all"], default="both")
+    ap.add_argument("--split", choices=["dev", "val", "test_seen", "test", "all", "both"], default="both",
+                    help="both = dev, val and the locked test, with the cut-off calibrated on val and applied once to test")
     ap.add_argument("--n", type=int, default=600, help="max emails per class (seeded sample)")
     ap.add_argument("--spam", action="store_true", help="also score SpamAssassin spam (reported separately)")
     ap.add_argument("--fpr", type=float, default=0.005, help="false-alarm budget for dev calibration (with --split both)")
@@ -92,19 +93,19 @@ def main():
     a = ap.parse_args()
 
     out, scored_by = {}, {}
-    for sp in (["dev", "test"] if a.split == "both" else [a.split]):
+    for sp in (["dev", "val", "test"] if a.split == "both" else [a.split]):
         res, scored = run_split(sp, a.n, a.spam, tuple(x for x in a.drop.split(",") if x))
         out[sp] = show(sp, res)
         scored_by[sp] = scored
 
     if a.split == "both":
-        dev_rows = [r for r in scored_by["dev"] if r["label"] in ("phishing", "legit")]
+        dev_rows = [r for r in scored_by["val"] if r["label"] in ("phishing", "legit")]
         test_rows = [r for r in scored_by["test"] if r["label"] in ("phishing", "legit")]
         t = M.threshold_for_fpr(dev_rows, a.fpr)
         if t is not None:
             m = M.with_intervals(M.metrics(test_rows, t))
-            out["calibrated"] = {"fpr_budget": a.fpr, "threshold_from_dev": t, "test": m}
-            print(f"\n== Cut-off {t} chosen on DEV for <= {pct(a.fpr)} false alarms, applied once to TEST:")
+            out["calibrated"] = {"fpr_budget": a.fpr, "threshold_from_val": t, "test": m}
+            print(f"\n== Cut-off {t} chosen on VAL for <= {pct(a.fpr)} false alarms, applied once to TEST:")
             print(f"   test recall {pct(m['recall'])} [{pct(m['recall_ci'][0])}-{pct(m['recall_ci'][1])}]   "
                   f"false alarms {m['fp_per_1000']:.1f}/1000   precision {pct(m['precision'])}   "
                   f"precision@1%prev {pct(m['precision_at_prevalence']['0.01'])}")

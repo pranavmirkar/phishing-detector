@@ -12,6 +12,7 @@ Replaces the hardcoded 32-domain list with two free, no-key-required sources:
 
 import io
 import os
+import re
 import sqlite3
 import threading
 import zipfile
@@ -25,7 +26,8 @@ TRANCO_URL  = "https://tranco-list.eu/top-1m.csv.zip"
 STORE_TOP_N = 50_000   # rows kept in SQLite (exact-match trust checks)
 MATCH_TOP_N = 1_000    # rows used for Levenshtein (major brands only)
 WHOIS_TTL_H = 24       # hours before re-querying WHOIS
-WHOIS_TIMEOUT_S = 6    # max seconds per WHOIS call
+WHOIS_TIMEOUT_S = float(os.environ.get("PG_WHOIS_TIMEOUT", "3"))   # max seconds a request waits for WHOIS
+WHOIS_FAIL_TTL_H = 1   # remember failures / timeouts this long so a slow registry cannot stall every email
 # Absolute by default, so the server works from any working directory. Override with PG_DB.
 DB_PATH     = os.environ.get("PG_DB") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "phishing.db")
 
@@ -219,86 +221,76 @@ def _fallback_domains() -> list[str]:
 
 # ── WHOIS domain age ──────────────────────────────────────────────────────────
 
-def check_domain_age(domain: str) -> dict:
-    """
-    WHOIS lookup with 24-hour SQLite cache.
-    Runs WHOIS in a thread with a hard timeout so slow registries
-    never block the Flask request cycle.
-    """
-    # Check cache first
+_DOMAIN_OK = re.compile(r"^(?=.{4,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$")
+_whois_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="whois")   # bounded: stuck lookups cannot pile up threads
+
+
+def _now_naive():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _cache_whois(domain, age_days, registrar="", country="", is_new=0):
     try:
         conn = _db()
-        row = conn.execute(
-            "SELECT age_days, registrar, country, is_new, cached_at FROM whois_cache WHERE domain=?",
-            (domain,),
-        ).fetchone()
+        conn.execute("INSERT OR REPLACE INTO whois_cache VALUES (?,?,?,?,?,?)",
+                     (domain, age_days, registrar, country, is_new, _now_naive().isoformat()))
+        conn.commit()
         conn.close()
-
-        if row:
-            cached_at = datetime.fromisoformat(row["cached_at"])
-            if datetime.utcnow() - cached_at < timedelta(hours=WHOIS_TTL_H):
-                return {
-                    "age_days":  row["age_days"],
-                    "registrar": row["registrar"],
-                    "country":   row["country"],
-                    "is_new":    bool(row["is_new"]),
-                    "from_cache": True,
-                }
     except Exception:
         pass
 
-    # Live WHOIS query inside a thread (enforces timeout)
+
+def check_domain_age(domain: str) -> dict:
+    """
+    WHOIS lookup with a SQLite cache (24 h for answers, 1 h for failures).
+
+    The wait is hard-bounded (PG_WHOIS_TIMEOUT, default 3 s): the lookup runs in a small shared
+    thread pool and is abandoned, not awaited, on timeout. Set PG_WHOIS=0 to turn WHOIS off.
+    """
+    domain = (domain or "").strip().lower().rstrip(".")
+    if os.environ.get("PG_WHOIS") == "0":
+        return {"age_days": None, "disabled": True}
+    if not _DOMAIN_OK.match(domain):
+        return {"age_days": None, "error": "invalid_domain"}
+
+    try:
+        conn = _db()
+        row = conn.execute("SELECT age_days, registrar, country, is_new, cached_at FROM whois_cache WHERE domain=?",
+                           (domain,)).fetchone()
+        conn.close()
+        if row:
+            ttl = timedelta(hours=WHOIS_TTL_H if row["age_days"] is not None else WHOIS_FAIL_TTL_H)
+            if _now_naive() - datetime.fromisoformat(row["cached_at"]) < ttl:
+                if row["age_days"] is None:
+                    return {"age_days": None, "from_cache": True}
+                return {"age_days": row["age_days"], "registrar": row["registrar"], "country": row["country"],
+                        "is_new": bool(row["is_new"]), "from_cache": True}
+    except Exception:
+        pass
+
     try:
         import whois  # python-whois
-
-        def _do_whois():
-            return whois.whois(domain)
-
-        with ThreadPoolExecutor(max_workers=1) as ex:
-            try:
-                w = ex.submit(_do_whois).result(timeout=WHOIS_TIMEOUT_S)
-            except FTimeout:
-                return {"age_days": None, "error": "whois_timeout"}
+        fut = _whois_pool.submit(whois.whois, domain)
+        try:
+            w = fut.result(timeout=WHOIS_TIMEOUT_S)
+        except FTimeout:
+            fut.cancel()
+            _cache_whois(domain, None)
+            return {"age_days": None, "error": "whois_timeout"}
 
         creation = w.creation_date
         if isinstance(creation, list):
             creation = creation[0]
-
         if not creation:
+            _cache_whois(domain, None)
             return {"age_days": None, "registrar": str(w.registrar or "")[:200]}
-
         if creation.tzinfo is None:
             creation = creation.replace(tzinfo=timezone.utc)
-
-        age_days  = (datetime.now(timezone.utc) - creation).days
-        is_new    = age_days < 90
-        registrar = str(w.registrar  or "")[:200]
-        country   = str(w.country    or "")[:10]
-
-        result = {
-            "age_days":   age_days,
-            "registrar":  registrar,
-            "country":    country,
-            "is_new":     is_new,
-            "from_cache": False,
-        }
-
-        # Write to cache
-        try:
-            conn = _db()
-            conn.execute(
-                "INSERT OR REPLACE INTO whois_cache VALUES (?,?,?,?,?,?)",
-                (domain, age_days, registrar, country,
-                 int(is_new), datetime.utcnow().isoformat()),
-            )
-            conn.commit()
-            conn.close()
-        except Exception:
-            pass
-
-        return result
-
-    except ImportError:
-        return {"age_days": None, "error": "python-whois not installed"}
+        age_days = (datetime.now(timezone.utc) - creation).days
+        registrar, country = str(w.registrar or "")[:200], str(w.country or "")[:10]
+        _cache_whois(domain, age_days, registrar, country, int(age_days < 90))
+        return {"age_days": age_days, "registrar": registrar, "country": country,
+                "is_new": age_days < 90, "from_cache": False}
     except Exception as exc:
-        return {"age_days": None, "error": str(exc)}
+        _cache_whois(domain, None)
+        return {"age_days": None, "error": str(exc)[:100]}

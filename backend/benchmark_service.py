@@ -19,6 +19,7 @@ import threading
 import time
 import urllib.request
 import uuid
+from urllib.parse import urlparse
 from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
@@ -46,10 +47,16 @@ PRIVATE = {
                        "before the rules were improved. Includes known-hard cases (forged brand sender, no other clue).",
     },
 }
-LIMITS = {"custom_max_rows": 2000, "real_min_n": 20, "real_max_n": 1500, "real_default_n": 400, "field_max": 60000}
+LIMITS = {"custom_max_rows": 2000, "real_min_n": 20, "real_max_n": 6000, "real_default_n": 1500, "field_max": 60000}
 MAX_JOBS = 20
 CUSTOM_FIELDS = ("sender", "reply_to", "subject", "content", "auth_results", "return_path", "recipient")
 
+def _body():
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else {}
+
+
+_ALLOWED_HOSTS = {urlparse(v["url"]).hostname for v in C.SOURCES.values()}
 _lock = threading.Lock()
 _jobs = {}
 _download = {"state": "idle", "current": "", "done": 0, "total": 0, "file_index": 0, "file_count": 0, "error": ""}
@@ -116,9 +123,20 @@ def _download_worker(keys):
             dest = os.path.join(DATA_DIR, src["file"])
             with _lock:
                 _download.update(current=src["name"], done=0, total=0, file_index=i)
+            if src["kind"] == "enron":                 # streamed sample of a 443 MB archive, built by benchmark/enron.py
+                from benchmark import enron
+
+                def _progress(done, limit=45_000_000):
+                    with _lock:
+                        _download.update(done=min(done, limit), total=limit)
+
+                enron.build_sample(dest, on_progress=_progress)
+                continue
             req = urllib.request.Request(src["url"], headers={"User-Agent": "PhishGuard-benchmark/1.0"})
             tmp = dest + ".part"
             with urllib.request.urlopen(req, timeout=30) as resp, open(tmp, "wb") as out:
+                if (urlparse(resp.geturl()).hostname or "") not in _ALLOWED_HOSTS:     # a redirect must stay on a reviewed host
+                    raise ValueError(f"{src['name']}: redirected to an unexpected host")
                 total = int(resp.headers.get("Content-Length") or 0)
                 if total > src["max_bytes"]:
                     raise ValueError(f"{src['name']}: file larger than expected ({total} bytes)")
@@ -245,8 +263,8 @@ def _validate_spec(body):
         return {"dataset": dataset}
     if dataset == "real":
         split = body.get("split", "test")
-        if split not in ("dev", "test", "all"):
-            raise ValueError("split must be dev, test or all")
+        if split not in ("dev", "val", "test_seen", "test", "all"):
+            raise ValueError("split must be dev, val, test_seen, test or all")
         try:
             n = int(body.get("n", LIMITS["real_default_n"]))
         except (TypeError, ValueError):
@@ -275,13 +293,17 @@ def datasets():
         "private": _private_info(),
         "real": {
             "files": _real_files(), "groups": C.GROUPS,
-            "ready": {sp: _split_ready(sp) for sp in ("dev", "test", "all")}, "download": dl,
-            "splits": {"dev": "Older phishing (2015-2022) with 2002-03 and 2025 legitimate mail. Where rules are diagnosed.",
-                       "test": "Recent phishing (2023-2025), time-held-out from the dev years, with the other half of the legitimate mail.",
-                       "all": "Everything above."},
+            "ready": {sp: _split_ready(sp) for sp in ("dev", "val", "test_seen", "test", "all")}, "download": dl,
+            "splits": {
+                "test": "LOCKED: 2024-2025 phishing and legitimate mail that was never scored or inspected. The learned model was trained only on earlier years and other senders.",
+                "dev": "2015, 2018, 2019, 2022 phishing with a quarter of the legitimate mail. Rules and the model are built here.",
+                "val": "2016, 2017, 2020, 2021, 2023 phishing with another quarter of the legitimate mail: iteration checks and model training.",
+                "test_seen": "2024-2025 emails that were scored once during development (so no longer unseen). Never used for training.",
+                "all": "Everything above."},
             "note": "Public corpora are fetched on request from their original sites and are not redistributed with "
-                    "this project. Phishing: J. Nazario corpus, CC BY 4.0. Legitimate mail: 2002-03 SpamAssassin ham "
-                    "and 2025 Apache mailing lists, so marketing mail and receipts are NOT represented.",
+                    "this project. Phishing: J. Nazario corpus (CC BY 4.0). Legitimate mail: SpamAssassin ham (2002-03), "
+                    "Enron corporate mail (1999-2002) and Apache mailing lists (2025). Marketing mail, receipts and "
+                    "consumer webmail are NOT represented, so false alarms on them are unmeasured.",
         },
         "limits": LIMITS,
     })
@@ -289,10 +311,10 @@ def datasets():
 
 @bp.route("/real/download", methods=["POST"])
 def real_download():
-    body = request.get_json(silent=True) or {}
-    group = body.get("group", "core")
+    body = _body()
+    group = body.get("group")
     if group not in ("core", "recent", "optional", "all"):
-        return jsonify({"error": "unknown group"}), 400
+        return jsonify({"error": "group must be one of core, recent, optional, all"}), 400
     started = start_download(group)
     if started is None:
         return jsonify({"error": "A download is already running."}), 409
@@ -320,7 +342,7 @@ def real_delete():
 @bp.route("/run", methods=["POST"])
 def run():
     try:
-        spec = _validate_spec(request.get_json(silent=True) or {})
+        spec = _validate_spec(_body())
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     with _lock:

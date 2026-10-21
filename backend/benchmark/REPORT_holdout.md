@@ -1,6 +1,6 @@
 # PhishGuard validation benchmark (holdout set)
 
-Run date: 2026-10-22  |  Samples: 258 (165 phishing, 93 legitimate)  |  Trusted-domain list: 50,000 Tranco domains  |  ROC AUC: **0.975**
+Run date: 2026-10-22  |  Samples: 258 (165 phishing, 93 legitimate)  |  Trusted-domain list: 50,000 Tranco domains  |  ROC AUC: **0.968**
 
 ## Overall results
 
@@ -8,11 +8,11 @@ Positive class = phishing. An email is flagged when its risk score is at or abov
 
 | Operating point | Threshold | Accuracy | Balanced acc. | Precision | Recall | Specificity | F1 |
 |---|---|---|---|---|---|---|---|
-| MEDIUM or HIGH flagged | 25 | 97.3% | 97.9% | 100.0% | 95.8% | 100.0% | 97.8% |
-| HIGH only flagged | 55 | 91.5% | 93.3% | 100.0% | 86.7% | 100.0% | 92.9% |
+| MEDIUM or HIGH flagged | 25 | 95.7% | 96.7% | 100.0% | 93.3% | 100.0% | 96.6% |
+| HIGH only flagged | 55 | 79.5% | 83.9% | 100.0% | 67.9% | 100.0% | 80.9% |
 
-Confusion matrix, MEDIUM or HIGH flagged: TP=158 FP=0 TN=93 FN=7  
-Confusion matrix, HIGH only flagged: TP=143 FP=0 TN=93 FN=22  
+Confusion matrix, MEDIUM or HIGH flagged: TP=154 FP=0 TN=93 FN=11  
+Confusion matrix, HIGH only flagged: TP=112 FP=0 TN=93 FN=53  
 
 ## Held-out validation
 
@@ -20,9 +20,9 @@ The dataset was split 70/30 (stratified, seed 7). The score threshold was chosen
 
 | Set | Threshold | Accuracy | Balanced acc. | Precision | Recall | Specificity | F1 |
 |---|---|---|---|---|---|---|---|
-| Development | 40 | 97.8% | 98.3% | 100.0% | 96.5% | 100.0% | 98.2% |
-| Test (held out) | 40 | 96.2% | 97.0% | 100.0% | 94.0% | 100.0% | 96.9% |
-| Test at default MEDIUM cut-off | 25 | 96.2% | 97.0% | 100.0% | 94.0% | 100.0% | 96.9% |
+| Development | 25 | 96.7% | 97.4% | 100.0% | 94.8% | 100.0% | 97.3% |
+| Test (held out) | 25 | 93.6% | 95.0% | 100.0% | 90.0% | 100.0% | 94.7% |
+| Test at default MEDIUM cut-off | 25 | 93.6% | 95.0% | 100.0% | 90.0% | 100.0% | 94.7% |
 
 ## Per-category results (flagged at MEDIUM or above)
 
@@ -30,67 +30,71 @@ The dataset was split 70/30 (stratified, seed 7). The score threshold was chosen
 
 | Class | Category | n | Correct | Rate | Mean score |
 |---|---|---|---|---|---|
-| legit | hyphenated_business_hard | 6 | 6 | 100.0% | 3 |
-| legit | institution | 5 | 5 | 100.0% | 0 |
-| legit | legit_name_collision | 6 | 6 | 100.0% | 0 |
+| legit | hyphenated_business_hard | 6 | 6 | 100.0% | 15 |
+| legit | institution | 5 | 5 | 100.0% | 10 |
+| legit | legit_name_collision | 6 | 6 | 100.0% | 12 |
 | legit | personal_freemail_hard | 12 | 12 | 100.0% | 5 |
-| legit | small_org_unknown_domain | 20 | 20 | 100.0% | 2 |
-| legit | trusted_esp_redirect | 3 | 3 | 100.0% | 20 |
-| legit | trusted_retail_marketing | 15 | 15 | 100.0% | 0 |
-| legit | trusted_same_org_tracking | 12 | 12 | 100.0% | 0 |
-| legit | trusted_security_alert | 14 | 14 | 100.0% | 0 |
-| phishing | combosquat | 10 | 10 | 100.0% | 93 |
-| phishing | crypto_giveaway | 10 | 10 | 100.0% | 97 |
-| phishing | display_name_spoof | 10 | 10 | 100.0% | 94 |
-| phishing | freemail_scam_text | 12 | 12 | 100.0% | 70 |
-| phishing | punycode_idn | 15 | 15 | 100.0% | 83 |
-| phishing | shipping_lure | 10 | 10 | 100.0% | 84 |
-| phishing | spoofed_trusted_no_signal | 6 | 0 | 0.0% | 0 |
-| phishing | spoofed_trusted_reply_to | 10 | 10 | 100.0% | 42 |
-| phishing | subdomain_brand | 20 | 20 | 100.0% | 98 |
-| phishing | suffix_squat | 15 | 15 | 100.0% | 93 |
-| phishing | throwaway_domain_lure | 10 | 10 | 100.0% | 77 |
-| phishing | tld_squat | 11 | 11 | 100.0% | 99 |
-| phishing | typo_double | 9 | 9 | 100.0% | 98 |
-| phishing | typo_rn | 4 | 4 | 100.0% | 100 |
-| phishing | typo_vowel | 13 | 12 | 92.3% | 89 |
+| legit | small_org_unknown_domain | 20 | 20 | 100.0% | 14 |
+| legit | trusted_esp_redirect | 3 | 3 | 100.0% | 19 |
+| legit | trusted_retail_marketing | 15 | 15 | 100.0% | 1 |
+| legit | trusted_same_org_tracking | 12 | 12 | 100.0% | 17 |
+| legit | trusted_security_alert | 14 | 14 | 100.0% | 7 |
+| phishing | combosquat | 10 | 10 | 100.0% | 60 |
+| phishing | crypto_giveaway | 10 | 10 | 100.0% | 44 |
+| phishing | display_name_spoof | 10 | 10 | 100.0% | 85 |
+| phishing | freemail_scam_text | 12 | 12 | 100.0% | 56 |
+| phishing | punycode_idn | 15 | 14 | 93.3% | 70 |
+| phishing | shipping_lure | 10 | 10 | 100.0% | 30 |
+| phishing | spoofed_trusted_no_signal | 6 | 0 | 0.0% | 8 |
+| phishing | spoofed_trusted_reply_to | 10 | 9 | 90.0% | 48 |
+| phishing | subdomain_brand | 20 | 20 | 100.0% | 83 |
+| phishing | suffix_squat | 15 | 15 | 100.0% | 70 |
+| phishing | throwaway_domain_lure | 10 | 8 | 80.0% | 59 |
+| phishing | tld_squat | 11 | 11 | 100.0% | 69 |
+| phishing | typo_double | 9 | 9 | 100.0% | 75 |
+| phishing | typo_rn | 4 | 4 | 100.0% | 76 |
+| phishing | typo_vowel | 13 | 12 | 92.3% | 68 |
 
 ## Threshold sweep
 
 | Threshold | Precision | Recall | FPR | F1 | Accuracy |
 |---|---|---|---|---|---|
-| 5 | 90.3% | 95.8% | 18.3% | 92.9% | 90.7% |
-| 10 | 94.6% | 95.8% | 9.7% | 95.2% | 93.8% |
-| 15 | 98.1% | 95.8% | 3.2% | 96.9% | 96.1% |
-| 20 | 98.1% | 95.8% | 3.2% | 96.9% | 96.1% |
-| 25 | 100.0% | 95.8% | 0.0% | 97.8% | 97.3% |
-| 30 | 100.0% | 95.8% | 0.0% | 97.8% | 97.3% |
-| 35 | 100.0% | 95.8% | 0.0% | 97.8% | 97.3% |
-| 40 | 100.0% | 95.8% | 0.0% | 97.8% | 97.3% |
-| 45 | 100.0% | 89.7% | 0.0% | 94.6% | 93.4% |
-| 50 | 100.0% | 89.1% | 0.0% | 94.2% | 93.0% |
-| 55 | 100.0% | 86.7% | 0.0% | 92.9% | 91.5% |
-| 60 | 100.0% | 86.1% | 0.0% | 92.5% | 91.1% |
-| 65 | 100.0% | 82.4% | 0.0% | 90.4% | 88.8% |
-| 70 | 100.0% | 80.6% | 0.0% | 89.3% | 87.6% |
-| 75 | 100.0% | 77.0% | 0.0% | 87.0% | 85.3% |
-| 80 | 100.0% | 74.5% | 0.0% | 85.4% | 83.7% |
-| 85 | 100.0% | 70.3% | 0.0% | 82.6% | 81.0% |
-| 90 | 100.0% | 65.5% | 0.0% | 79.1% | 77.9% |
-| 95 | 100.0% | 55.8% | 0.0% | 71.6% | 71.7% |
-| 100 | 100.0% | 49.1% | 0.0% | 65.9% | 67.4% |
+| 5 | 70.4% | 98.2% | 73.1% | 82.0% | 72.5% |
+| 10 | 75.5% | 97.0% | 55.9% | 84.9% | 77.9% |
+| 15 | 82.8% | 96.4% | 35.5% | 89.1% | 84.9% |
+| 20 | 95.7% | 94.5% | 7.5% | 95.1% | 93.8% |
+| 25 | 100.0% | 93.3% | 0.0% | 96.6% | 95.7% |
+| 30 | 100.0% | 87.9% | 0.0% | 93.5% | 92.2% |
+| 35 | 100.0% | 86.7% | 0.0% | 92.9% | 91.5% |
+| 40 | 100.0% | 78.8% | 0.0% | 88.1% | 86.4% |
+| 45 | 100.0% | 78.2% | 0.0% | 87.8% | 86.0% |
+| 50 | 100.0% | 77.0% | 0.0% | 87.0% | 85.3% |
+| 55 | 100.0% | 67.9% | 0.0% | 80.9% | 79.5% |
+| 60 | 100.0% | 63.6% | 0.0% | 77.8% | 76.7% |
+| 65 | 100.0% | 51.5% | 0.0% | 68.0% | 69.0% |
+| 70 | 100.0% | 44.8% | 0.0% | 61.9% | 64.7% |
+| 75 | 100.0% | 40.6% | 0.0% | 57.8% | 62.0% |
+| 80 | 100.0% | 29.7% | 0.0% | 45.8% | 55.0% |
+| 85 | 100.0% | 24.2% | 0.0% | 39.0% | 51.6% |
+| 90 | 100.0% | 11.5% | 0.0% | 20.7% | 43.4% |
+| 95 | 100.0% | 4.2% | 0.0% | 8.1% | 38.8% |
+| 100 | 100.0% | 3.6% | 0.0% | 7.0% | 38.4% |
 
-## Misclassified samples at MEDIUM or above (7)
+## Misclassified samples at MEDIUM or above (11)
 
 | id | Truth | Category | Sender | Score | Signals fired |
 |---|---|---|---|---|---|
-| 8 | phishing | spoofed_trusted_no_signal | `no-reply@amazon.com` | 0 | TRUSTED_VERIFIED |
-| 26 | phishing | spoofed_trusted_no_signal | `billing@paypal.com` | 0 | TRUSTED_VERIFIED |
+| 8 | phishing | spoofed_trusted_no_signal | `no-reply@amazon.com` | 3 | TRUSTED_VERIFIED |
+| 26 | phishing | spoofed_trusted_no_signal | `billing@paypal.com` | 6 | TRUSTED_VERIFIED |
 | 39 | phishing | typo_vowel | `service@eps.com` | 0 | none |
-| 53 | phishing | spoofed_trusted_no_signal | `no-reply@amazon.com` | 0 | TRUSTED_VERIFIED |
-| 79 | phishing | spoofed_trusted_no_signal | `security@microsoft.com` | 0 | TRUSTED_VERIFIED |
-| 176 | phishing | spoofed_trusted_no_signal | `billing@paypal.com` | 0 | TRUSTED_VERIFIED |
-| 198 | phishing | spoofed_trusted_no_signal | `security@microsoft.com` | 0 | TRUSTED_VERIFIED |
+| 53 | phishing | spoofed_trusted_no_signal | `no-reply@amazon.com` | 3 | TRUSTED_VERIFIED |
+| 68 | phishing | throwaway_domain_lure | `care@billing-help-line.work` | 24 | BRAND_MISMATCH, LURE_WORDS_IN_DOMAIN, SUSPICIOUS_TLD |
+| 79 | phishing | spoofed_trusted_no_signal | `security@microsoft.com` | 15 | TRUSTED_VERIFIED |
+| 92 | phishing | punycode_idn | `security@xn--venm-eua.com` | 20 | BRAND_MISMATCH, PUNYCODE_DOMAIN |
+| 123 | phishing | throwaway_domain_lure | `care@verifyme-now.xyz` | 15 | BRAND_MISMATCH, SUSPICIOUS_TLD |
+| 176 | phishing | spoofed_trusted_no_signal | `billing@paypal.com` | 6 | TRUSTED_VERIFIED |
+| 198 | phishing | spoofed_trusted_no_signal | `security@microsoft.com` | 15 | TRUSTED_VERIFIED |
+| 258 | phishing | spoofed_trusted_reply_to | `no-reply@paytm.com` | 14 | REPLY_TO_MISMATCH, SUSPICIOUS_LINK, TRUSTED_VERIFIED |
 
 ## How to reproduce
 

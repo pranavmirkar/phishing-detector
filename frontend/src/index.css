@@ -727,3 +727,6 @@ details.files > summary .muted { margin-left: auto; }
 details.files > summary::before { content: '▸'; color: var(--text-3); font-size: .7rem; width: 10px; }
 details.files[open] > summary::before { content: '▾'; }
 details.files .file-list { margin: 4px 0 8px 18px; }
+.tiers { table-layout: fixed; width: 100%; }
+.tiers td { white-space: normal; }
+.tiers td:last-child { width: 180px; }

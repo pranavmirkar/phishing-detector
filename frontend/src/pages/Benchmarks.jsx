@@ -174,7 +174,7 @@ export default function Benchmarks({ theme }) {
   const [saved, setSaved] = useState({})
   const [source, setSource] = useState('private_dev')
   const [split, setSplit] = useState('test')
-  const [n, setN] = useState(400)
+  const [n, setN] = useState(1500)
   const [spam, setSpam] = useState(false)
   const [custom, setCustom] = useState(null)         // { name, rows, summary } | { error }
   const [job, setJob] = useState(null)
@@ -269,7 +269,8 @@ export default function Benchmarks({ theme }) {
   const privateList = info?.private ?? []
   const note = useMemo(() => {
     if (!shown) return null
-    if (shown.kind === 'real') return 'Phishing: J. Nazario corpus (CC BY 4.0). Legitimate mail: 2002-03 SpamAssassin and 2025 Apache mailing lists, so marketing mail and receipts are not represented. The test split is recent phishing (2023-2025), held out in time: rules were tuned on older years only. Near-duplicate campaigns can make results slightly optimistic.'
+    if (shown.kind === 'real' && ['dev', 'val', 'all'].includes(shown.options?.split)) return 'These splits are the data the rules were diagnosed on and the learned model was trained on, so these scores are NOT accuracy estimates. Use the locked test split for that.'
+    if (shown.kind === 'real') return 'Phishing: J. Nazario corpus (CC BY 4.0). Legitimate mail: SpamAssassin, Enron corporate mail and 2025 Apache lists; marketing mail and receipts are not represented. Phishing is split by year and legitimate mail by sender, so the locked test contains later years and different senders than anything trained on. Near-duplicate campaigns can still make results slightly optimistic.'
     if (shown.kind === 'private') return 'Synthetic emails written by this project. They are a regression baseline and a check of the rule logic, not a real-world accuracy estimate.'
     return 'Your own labelled file. Accuracy here reflects how closely it resembles the detector\'s inputs and how well the labels match the truth.'
   }, [shown])
@@ -313,7 +314,7 @@ export default function Benchmarks({ theme }) {
 
             {source === 'real' && real && (
               <div className="src-detail">
-                {['core', 'recent', 'optional'].map(g => {
+                {Object.keys(real.groups).map(g => {
                   const files = real.files.filter(f => f.group === g)
                   const missing = files.some(f => !f.present)
                   return (
@@ -321,7 +322,7 @@ export default function Benchmarks({ theme }) {
                       <details className="files">
                         <summary>
                           <span className={`notice-dot ${missing ? '' : 'ok'}`} />
-                          <span>{g === 'optional' ? 'Optional: SpamAssassin spam (reported separately)' : real.groups[g]}</span>
+                          <span>{real.groups[g]}</span>
                           <span className="muted">{files.filter(f => f.present).length}/{files.length}</span>
                         </summary>
                         <ul className="file-list">
@@ -337,7 +338,7 @@ export default function Benchmarks({ theme }) {
                       {!downloading && missing && (
                         <div className="btn-row">
                           <button type="button" className="btn btn-ghost btn-sm" onClick={() => startDownload(g)}>
-                            Download {g === 'core' ? 'core set' : g === 'recent' ? 'recent set' : 'spam'}
+                            Download {g} set
                           </button>
                         </div>
                       )}
@@ -361,13 +362,14 @@ export default function Benchmarks({ theme }) {
                 <div className="form-group">
                   <p className="label">Which part</p>
                   <Seg label="Corpus part" value={split} onChange={setSplit} options={[
-                    { value: 'test', label: 'Test (recent)' }, { value: 'dev', label: 'Dev (older)' }, { value: 'all', label: 'All' }]} />
+                    { value: 'test', label: 'Test (locked)' }, { value: 'dev', label: 'Dev' }, { value: 'val', label: 'Val' },
+                    { value: 'test_seen', label: 'Seen' }, { value: 'all', label: 'All' }]} />
                   <p className="hint">{real.splits[split]}</p>
                   {!real.ready[split] && <p className="hint">Download the files above to run this part.</p>}
                 </div>
                 <div className="form-group">
                   <p className="label">Emails per class</p>
-                  <Seg label="Size" value={n} onChange={setN} options={[200, 400, 800, 1500].map(v => ({ value: v, label: String(v) }))} />
+                  <Seg label="Size" value={n} onChange={setN} options={[200, 800, 1500, 6000].map(v => ({ value: v, label: v === 6000 ? 'All' : String(v) }))} />
                 </div>
                 <label className="check">
                   <input type="checkbox" checked={spam} onChange={e => setSpam(e.target.checked)} />
@@ -425,7 +427,7 @@ export default function Benchmarks({ theme }) {
               <div className="card">
                 <div className="card-hd">
                   <div>
-                    <h3 className="card-title">{shown.name}{shown.kind === 'real' ? ` · ${({ test: 'test split (2023–25 phishing)', dev: 'dev split (2015–22 phishing)', all: 'all' })[shown.options?.split] ?? ''}` : ''}</h3>
+                    <h3 className="card-title">{shown.name}{shown.kind === 'real' ? ` · ${({ test: 'locked test (unseen 2024–25)', dev: 'dev split', val: 'validation split', test_seen: 'seen 2024–25', all: 'all splits' })[shown.options?.split] ?? ''}` : ''}</h3>
                     <p className="card-sub">
                       {shown.counts.phishing} phishing · {shown.counts.legit} legit
                       {shown.counts.spam ? ` · ${shown.counts.spam} spam` : ''} · {shown.duration_s}s · {when(shown.finished_at)}

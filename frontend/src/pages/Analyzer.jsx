@@ -174,6 +174,12 @@ export default function Analyzer() {
                       <code className="domain-code" style={{ color: 'var(--warn)' }}>{da.normalized}</code>
                     </div>
                   )}
+                  {result.model && (
+                    <p className="hint" style={{ marginBottom: 10 }}>
+                      Scored by a learned model (v{result.model.version}) over the findings below; rules alone would give {result.rule_score}.
+                      MEDIUM is the cut-off that flagged about 1% of legitimate training mail, HIGH about 0.1%.
+                    </p>
+                  )}
                   {warnings.length > 0 && (
                     <div className="warn-summary">
                       {warnings.map((w, i) => (

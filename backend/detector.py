@@ -1,6 +1,7 @@
+import itertools
 import re
 import unicodedata
-from urllib.parse import urlparse
+from urllib.parse import ParseResult, urlparse as _urlparse
 
 from levenshtein import (
     levenshtein_distance,
@@ -13,6 +14,7 @@ from domain_intel import (
     get_levenshtein_pool,
     check_domain_age,
 )
+import model as scoring_model
 from brands import (
     FREEMAIL, TWO_PART_SUFFIXES, PROTECTED, LURE_WORDS, ABUSED_TLDS, URL_SHORTENERS,
 )
@@ -115,17 +117,40 @@ BRAND_ALIASES = {
     "icicibank": ["icici bank", "icici"], "axisbank": ["axis bank"],
     "sbi": ["state bank of india", "sbi"], "citibank": ["citi bank", "citibank"],
     "capitalone": ["capital one"], "usbank": ["us bank", "u.s. bank"],
-    "microsoft": ["microsoft", "outlook", "office 365"], "royalmail": ["royal mail"],
+    "microsoft": ["microsoft", "office 365"], "royalmail": ["royal mail"],
     "incometax": ["income tax department"], "kotak": ["kotak mahindra", "kotak"],
 }
-MENTION_EXCLUDE = {"discover", "ups", "visa"}   # common words: too noisy to count as a brand mention
+MENTION_EXCLUDE = {"discover", "ups", "visa", "outlook", "office365", "onedrive", "sharepoint", "skype"}   # common words: too noisy to count as a brand mention
 
-STYLE_RE = re.compile(r"<(style|script)\b.*?</\1>", re.I | re.S)
+
+
+def _strip_blocks(s: str) -> str:
+    """Remove <style> / <script> blocks in one linear pass (a regex here is quadratic on unclosed tags)."""
+    low = s.lower()
+    out, i, n = [], 0, len(s)
+    nxt = {"<style": low.find("<style"), "<script": low.find("<script")}
+    while i < n:
+        for k in nxt:
+            if 0 <= nxt[k] < i:
+                nxt[k] = low.find(k, i)
+        starts = [v for v in nxt.values() if v >= 0]
+        if not starts:
+            out.append(s[i:])
+            break
+        a = min(starts)
+        out.append(s[i:a])
+        tag = "</style" if low.startswith("<style", a) else "</script"
+        end = low.find(tag, a)
+        if end < 0:
+            break                                    # unclosed: the rest is code, not text
+        gt = low.find(">", end)
+        i = n if gt < 0 else gt + 1
+    return "".join(out)
 
 
 def _visible_text(content: str, limit: int = 1500) -> str:
     """Tag/CSS-stripped start of the message: where lures state their demand."""
-    t = TAG_RE.sub(" ", STYLE_RE.sub(" ", content))
+    t = TAG_RE.sub(" ", _strip_blocks(content[:60000]))
     return re.sub(r"\s+", " ", t).strip()[:limit]
 
 
@@ -135,8 +160,8 @@ HTML_ATTACH = {"html", "htm", "shtml", "xhtml", "xht", "svg", "mht", "mhtml"}
 EXEC_ATTACH = {"exe", "scr", "com", "bat", "cmd", "js", "jse", "vbs", "vbe", "wsf", "hta", "lnk", "iso", "img",
                "jar", "msi", "ps1", "dll", "apk", "chm", "reg"}
 ARCHIVE_ATTACH = {"zip", "rar", "7z", "gz", "tar", "ace", "arj", "cab"}
-FORM_RE = re.compile(r"<form\b[^>]*?action\s*=\s*[\"']?(https?://[^\s\"'>]+)", re.I | re.S)
-PASSWORD_INPUT_RE = re.compile(r"<input\b[^>]*?type\s*=\s*[\"']?password", re.I | re.S)
+FORM_RE = re.compile(r"<form\b[^>]{0,500}?action\s*=\s*[\"']?(https?://[^\s\"'>]+)", re.I | re.S)
+PASSWORD_INPUT_RE = re.compile(r"<input\b[^>]{0,300}?type\s*=\s*[\"']?password", re.I | re.S)
 
 # Phrases that are specific to credential / payment fraud. Generic pressure and marketing wording
 # ("urgent", "limited time", "free gift", "guaranteed") is common in legitimate newsletters, so it
@@ -171,7 +196,7 @@ DOCSHARE_RE = re.compile(
     r"\b(shared with you|has arrived|have arrived|is waiting|are waiting|pending|encrypted)|"
     r"you have (\(?\d+\)?|new|unread|pending|encrypted)[^.]{0,25}(mail|message|email|voice ?mail|fax)s?|"
     r"\b(pending|unread|incoming|encrypted|blocked|held|quarantined) (incoming )?(mail|message|email)s?\b", re.I)
-SENSITIVE_FIELD_RE = re.compile(r"<input\b[^>]*?name\s*=\s*[\"']?[a-z_]*(passw|pwd|cvv|ssn|cardnum|card_number)", re.I | re.S)
+SENSITIVE_FIELD_RE = re.compile(r"<input\b[^>]{0,300}?name\s*=\s*[\"']?[a-z_]*(passw|pwd|cvv|ssn|cardnum|card_number)", re.I | re.S)
 
 # Characters from other scripts that are used to disguise Latin words ("Rɵsɵt", "Pаypal").
 CONFUSABLES = {
@@ -190,9 +215,37 @@ PAYMENT_LURE_RE = re.compile(
     r"(membership|subscription|account) (will be |has been |is )?(cancel+ed|suspended|expired|on hold)|"
     r"(unauthori[sz]ed|unrecogni[sz]ed|suspicious) (access|transaction|activity|login|sign.?in)", re.I)
 
+# Brand names that are also ordinary words: a domain such as "orange-county-dental.com" is not
+# impersonation, so these only count together with a lure word ("orange-login.com").
+AMBIGUOUS_BRANDS = {
+    "apple", "orange", "target", "chase", "discover", "visa", "square", "slack", "zoom", "meta", "office", "windows",
+    "outlook", "live", "steam", "gold", "citi", "ing", "inter", "ally", "sky", "wise", "td", "bt", "ato", "sat", "cra",
+    "regions", "citizens", "marcus", "gemini", "ledger", "crypto", "poste", "nationwide", "halifax", "starling", "sharepoint",
+}
+
+DEAR_RE = re.compile(r"\bdear\s+(email|e-mail|mail|webmail|account|valued|beloved|esteemed)?\s*"
+                     r"(user|customer|member|subscriber|client|holder|friend|sir|madam|sir/madam|email user)s?\b", re.I)
+NEWFILE_RE = re.compile(r"\b(new|you have a|you've got a|you have received a|you received a)\s+"
+                        r"(recording|voice ?message|voicemail|fax|file|document|invoice|payment|order|shipment|parcel)\b|"
+                        r"\b(received|got)\s+(a\s+|an\s+)?(new\s+)?(file|document|message|fax|voicemail|recording)\b", re.I)
+
+# Non-English account/credential phrases. Two distinct hits in one message are needed.
+INTL_PHRASES = {
+    "es": ["verifique su cuenta", "su cuenta ha sido", "cuenta suspendida", "actualice su", "contraseña", "haga clic", "multa", "tarjeta de crédito", "banco", "confirme su"],
+    "pt": ["verifique sua conta", "sua conta", "conta suspensa", "conta bloqueada", "atualize seus dados", "atualização", "senha", "clique aqui", "cartão", "confirme seu"],
+    "fr": ["vérifiez votre compte", "votre compte", "compte suspendu", "mot de passe", "cliquez ici", "mettre à jour", "confirmez votre"],
+    "de": ["ihr konto", "bestätigen sie", "passwort", "jetzt aktualisieren", "gesperrt", "klicken sie hier", "ihr paket", "zahlung"],
+    "it": ["verifica il tuo account", "il tuo account", "conto sospeso", "clicca qui", "aggiorna", "conferma"],
+    "nl": ["uw account", "bevestig", "wachtwoord", "klik hier", "geblokkeerd"],
+    "ru": ["ваш аккаунт", "пароль", "подтвердите", "заблокирован", "нажмите"],
+    "ja": ["アカウント", "パスワード", "確認", "更新", "停止", "ログイン", "お客様"],
+    "zh": ["账户", "帐户", "密码", "验证", "更新", "暂停", "登录", "登陆", "需要采取", "您的邮箱"],
+    "tr": ["hesabınız", "şifre", "doğrulayın", "tıklayın"],
+}
+
 URL_RE = re.compile(r"https?://[^\s<>\"')\]]+", re.I)
-ANCHOR_RE = re.compile(r"<a\b[^>]*?href\s*=\s*[\"']([^\"']+)[\"'][^>]*>(.*?)</a>", re.I | re.S)
-TAG_RE = re.compile(r"<[^>]+>")
+ANCHOR_RE = re.compile(r"<a\b[^>]{0,500}?href\s*=\s*[\"']([^\"']{1,2000})[\"'][^>]{0,500}>(.{0,400}?)</a>", re.I | re.S)
+TAG_RE = re.compile(r"<[^<>]*>")   # [^<>] cannot cross another "<", so unclosed tags cost O(n) overall
 AUTH_RE = re.compile(r"\b(spf|dkim|dmarc)\s*=\s*([a-z]+)", re.I)
 
 PROTECTED_DOMAINS = {d for ds in PROTECTED.values() for d in ds}
@@ -216,7 +269,8 @@ GENERIC_DISPLAY = ROLE_WORDS | {
     "update", "updates", "notice", "notices", "info", "information", "new", "important",
     "feedback", "protection", "assistance", "secure", "inc", "rewards", "offers", "shipping", "delivery", "tracking",
     "payments", "orders", "receipts", "invoice", "statement", "news", "promo", "international", "global", "worldwide",
-    "logistics", "courier", "services", "customer", "relations",
+    "logistics", "courier", "services", "customer", "relations", "co", "jp", "uk", "de", "fr", "in", "ca", "au", "us", "es",
+    "it", "nl", "br", "mx", "ru", "cn", "kr", "eu", "support", "online", "team", "billing",
 }
 
 # Generic "your account/mailbox is in trouble, act now" structure (brand-independent).
@@ -232,6 +286,21 @@ ACTION_RE = re.compile(
 URGENCY_RE = re.compile(
     r"within\s+\d+\s+(hours|days)|\b(24|48|72)\s*(hours|hrs)\b|final (warning|notice|reminder)|immediately|"
     r"right away|do not ignore|deadline|act now|urgent|as soon as possible", re.I)
+
+
+def urlparse(url: str):
+    """urllib's urlparse, but malformed links ('http://[', bad ports) give an empty result instead of raising."""
+    try:
+        return _urlparse(url)
+    except ValueError:
+        return ParseResult("", "", "", "", "", "")
+
+
+def _safe_port_host(p) -> str:
+    try:
+        return (p.hostname or "").lower()
+    except ValueError:
+        return ""
 
 
 def registered_domain(host: str) -> str:
@@ -264,6 +333,123 @@ def _decode_idn(host: str):
     return ".".join(labels), had, ok
 
 
+_CANON_TABLE = str.maketrans({"i": "l", "I": "l", "1": "l", "|": "l", "0": "o", "5": "s", "3": "e", "$": "s"})
+
+
+def _canon(t: str) -> str:
+    """Lower-case with the classic look-alike confusions folded (i/l/1/I -> l, 0 -> o ...)."""
+    return t.lower().translate(_CANON_TABLE)
+
+
+_MENTION = None
+
+
+def _mention_index():
+    """({single-word name: brand}, [(multi-word name, brand)]) for brands worth detecting in prose."""
+    global _MENTION
+    if _MENTION is None:
+        single, multi = {}, []
+        for brand in PROTECTED:
+            if brand in MENTION_EXCLUDE or brand in AMBIGUOUS_BRANDS or len(brand) < 5:
+                continue
+            for n in [brand] + BRAND_ALIASES.get(brand, []):
+                if " " in n:
+                    multi.append((n, brand))
+                elif len(n) >= 3:
+                    single[n] = brand
+        _MENTION = (single, multi)
+    return _MENTION
+
+
+_BRAND_INDEX = None
+
+
+def _brand_index():
+    """canonical first letter -> [(canonical name, brand)] for every brand label and alias of length >= 5."""
+    global _BRAND_INDEX
+    if _BRAND_INDEX is None:
+        idx = {}
+        for brand in PROTECTED:
+            for n in [brand] + BRAND_ALIASES.get(brand, []):
+                n = re.sub(r"[^a-z0-9]", "", n.lower())
+                if len(n) >= 5:
+                    c = _canon(n)
+                    idx.setdefault(c[0], []).append((c, brand))
+        _BRAND_INDEX = idx
+    return _BRAND_INDEX
+
+
+_GENERIC_CANON = None
+
+
+def _is_generic(t: str) -> bool:
+    global _GENERIC_CANON
+    if _GENERIC_CANON is None:
+        _GENERIC_CANON = {_canon(x) for x in GENERIC_DISPLAY}
+    return t.isdigit() or t in GENERIC_DISPLAY or _canon(t) in _GENERIC_CANON
+
+
+def _fuzzy_brand(token: str):
+    """Brand whose name `token` imitates (disguised letters or one typo), or None. Exact names are handled elsewhere."""
+    c = _canon(token)
+    if len(c) < 5:
+        return None
+    for name, brand in _brand_index().get(c[0], ()):
+        if abs(len(c) - len(name)) <= 1 and (c == name or _osa(c, name) <= 1):
+            return brand
+    return None
+
+
+_MASKS: dict = {}
+
+
+def _mask(s: str) -> int:
+    """Bitset of the character buckets a string uses. One edit flips at most 2 bits, so
+    popcount(mask(a) ^ mask(b)) <= 2 * distance(a, b): a cheap lower bound used to skip hopeless candidates."""
+    m = _MASKS.get(s)
+    if m is None:
+        m = 0
+        for ch in s:
+            m |= 1 << (ord(ch) % 61)
+        if len(_MASKS) < 200_000:
+            _MASKS[s] = m
+    return m
+
+
+def _lev_bounded(a: str, b: str, k: int) -> int:
+    """Levenshtein distance if <= k, else k + 1. Only a diagonal band is computed, which is much cheaper than the full table."""
+    la, lb = len(a), len(b)
+    inf = k + 1
+    if abs(la - lb) > k:
+        return inf
+    if la < lb:
+        a, b, la, lb = b, a, lb, la
+    prev = [j if j <= k else inf for j in range(lb + 1)]
+    for i in range(1, la + 1):
+        cur = [inf] * (lb + 1)
+        if i <= k:
+            cur[0] = i
+        lo, hi = max(1, i - k), min(lb, i + k)
+        ca, best = a[i - 1], cur[0]
+        for j in range(lo, hi + 1):
+            v = prev[j - 1] + (ca != b[j - 1])
+            t = prev[j] + 1
+            if t < v:
+                v = t
+            t = cur[j - 1] + 1
+            if t < v:
+                v = t
+            if v > inf:
+                v = inf
+            cur[j] = v
+            if v < best:
+                best = v
+        if best >= inf:
+            return inf
+        prev = cur
+    return min(prev[lb], inf)
+
+
 def _osa(a: str, b: str) -> int:
     """Optimal-string-alignment distance: Levenshtein where one adjacent swap costs 1."""
     la, lb = len(a), len(b)
@@ -281,9 +467,46 @@ def _osa(a: str, b: str) -> int:
     return d[la][lb]
 
 
+def _text(v) -> str:
+    """Any JSON value -> string. Containers become '' (never repr() noise)."""
+    if isinstance(v, str):
+        return v
+    if v is None or isinstance(v, (list, dict, tuple, set)):
+        return ""
+    return str(v)
+
+
+def _sanitize_input(data) -> dict:
+    """The detector never trusts the shape of its input: wrong types degrade to empty values."""
+    if not isinstance(data, dict):
+        data = {}
+    atts = []
+    raw = data.get("attachments")
+    for a in (raw if isinstance(raw, list) else [])[:25]:
+        if isinstance(a, dict):
+            name = _text(a.get("filename"))
+        else:
+            name = _text(a)
+        if name:
+            atts.append({"filename": name[:200]})
+    auth = data.get("auth_results")
+    auth = {str(k): _text(v) for k, v in auth.items()} if isinstance(auth, dict) else _text(auth)
+    own = data.get("own_domains")
+    return {
+        "sender": _text(data.get("sender")), "subject": _text(data.get("subject")), "content": _text(data.get("content")),
+        "reply_to": _text(data.get("reply_to")), "return_path": _text(data.get("return_path")),
+        "recipient": _text(data.get("recipient")), "auth_results": auth, "attachments": atts,
+        "list_id": bool(data.get("list_id")),
+        "own_domains": [x for x in (own if isinstance(own, list) else []) if isinstance(x, str)][:20],
+    }
+
+
 class PhishingDetector:
-    def __init__(self, threshold: int = 2, use_whois: bool = True):
+    def __init__(self, threshold: int = 2, use_whois: bool = True, use_model: bool = True, return_features: bool = False):
         self.threshold = threshold
+        # use_model=False gives the pure rule score (used to build training data); return_features exposes the model inputs.
+        self.model = scoring_model.get_model() if use_model else None
+        self.return_features = return_features
         # Benchmarks turn WHOIS off so runs are offline, fast and repeatable.
         self.use_whois = use_whois
 
@@ -319,24 +542,31 @@ class PhishingDetector:
     def brand_in_domain(self, registered: str):
         """
         Does the registrable domain *use* a protected brand name without owning it?
-        Catches paypal-secure.com, my-paypal.net, paypal.xyz, paypalsecure.com but
-        not applecross-dental.co.uk (brand is only a substring of another word).
+        Catches paypal-secure.com, my-paypal.net, paypal.xyz, paypalsecure.com and typo-squatted
+        tokens (amazn-usshipping.com) but not applecross-dental.co.uk (brand is only part of a word)
+        or orange-county-dental.com (ordinary word that happens to be a brand).
         """
         label = registered.split(".")[0]
         tokens = [t for t in re.split(r"[-_]", label) if t]
+        lure = any(t in LURE_WORDS or t in DOMAIN_CRED_WORDS for t in tokens)
         for brand, legit in PROTECTED.items():
             if registered in legit:
                 continue
-            if label == brand and registered.split(".", 1)[1] in SAME_NAME_RISKY_TLDS:
+            soft = brand in AMBIGUOUS_BRANDS
+            if label == brand and "." in registered and registered.split(".", 1)[1] in SAME_NAME_RISKY_TLDS:
                 return brand, "same name, different domain"
             for t in tokens:
-                if t == brand and len(tokens) > 1:
+                if t == brand and len(tokens) > 1 and (lure or not soft):
                     return brand, "brand name used as a word in the domain"
                 if len(brand) >= 5:
                     if t.startswith(brand) and (t[len(brand):] in LURE_WORDS or t[len(brand):].isdigit()):
                         return brand, "brand name plus a lure word"
                     if t.endswith(brand) and t[:-len(brand)] in LURE_WORDS:
                         return brand, "lure word plus brand name"
+        for t in tokens:                                    # typo-squatted / disguised brand token
+            fb = _fuzzy_brand(t)
+            if fb and registered not in PROTECTED[fb] and t != fb and (len(tokens) > 1 or len(t) >= 6):
+                return fb, "misspelled or disguised brand name"
         return None
 
     def check_subdomain_abuse(self, domain: str):
@@ -361,13 +591,13 @@ class PhishingDetector:
         return None
 
     def brands_in_text(self, text: str):
+        """Brands named in the text (whole words / phrases). One pass over the tokens, not one regex per brand."""
         t = text.lower()
-        found = set()
-        for brand in PROTECTED:
-            if brand in MENTION_EXCLUDE:
-                continue
-            names = [brand] + BRAND_ALIASES.get(brand, [])
-            if any(re.search(r"\b" + re.escape(n) + r"\b", t) for n in names):
+        words = set(re.findall(r"[a-z0-9]+", t))
+        single, multi = _mention_index()
+        found = {brand for name, brand in single.items() if name in words}
+        for name, brand in multi:
+            if brand not in found and name in t:
                 found.add(brand)
         return found
 
@@ -392,8 +622,13 @@ class PhishingDetector:
                     for j in range(i + 1, min(i + 4, len(tokens)) + 1):
                         if "".join(tokens[i:j]) == target:
                             rest = tokens[:i] + tokens[j:]
-                            if all(t in GENERIC_DISPLAY or t.isdigit() for t in rest):
+                            if all(_is_generic(t) for t in rest):
                                 return brand
+        for i in range(len(tokens)):                        # disguised spellings: "PayPaI", "Linkedln", "Amazn"
+            for j in range(i + 1, min(i + 3, len(tokens)) + 1):
+                fb = _fuzzy_brand("".join(tokens[i:j]))
+                if fb and all(_is_generic(t) for t in tokens[:i] + tokens[j:]):
+                    return fb
         if local:
             l_tokens = set(re.split(r"[^a-z]+", local))
             if l_tokens & ROLE_WORDS:
@@ -439,11 +674,21 @@ class PhishingDetector:
         targets = pool + [d for d in sorted(PROTECTED_DOMAINS) if d not in seen]
 
         def nearest(form: str):
-            out = []
+            out, rest, fm = [], [], _mask(form)
             for td in targets:
-                if td == registered or abs(len(td) - len(form)) > 5:
+                if td == registered:
                     continue
-                out.append((levenshtein_distance(form, td), td))
+                if abs(len(td) - len(form)) > 5 or (fm ^ _mask(td)).bit_count() > 10:
+                    rest.append(td)
+                    continue
+                d = _lev_bounded(form, td, 5)
+                if d <= 5:
+                    out.append((d, td))
+                else:
+                    rest.append(td)
+            if len(out) < 5:                      # nothing close: still show the nearest few (full distance) for the UI
+                rest.sort(key=lambda td: abs(len(td) - len(form)))
+                out += [(levenshtein_distance(form, td), td) for td in rest[:12]]
             out.sort()
             return out
 
@@ -553,7 +798,7 @@ class PhishingDetector:
     def check_links(self, content: str) -> list:
         """Anchors whose visible text is a URL on a different registrable domain than the href."""
         mismatches = []
-        for href, inner in ANCHOR_RE.findall(content):
+        for href, inner in [m.groups() for m in itertools.islice(ANCHOR_RE.finditer(content), 300)]:
             visible = TAG_RE.sub("", inner).strip()
             m = re.match(r"(?:https?://|www\.)[^\s]+", visible, re.I)
             if not m:
@@ -564,10 +809,31 @@ class PhishingDetector:
                 mismatches.append({"visible": visible, "actual": href})
         return mismatches
 
+    def _link_stats(self, urls: list, sender_registered: str, recipient: str) -> dict:
+        """Era-neutral facts about where the links go: obscure destinations, plain http, long or personalised URLs."""
+        if not urls:
+            return {}
+        regs, untrusted, http, maxlen, depth, email = set(), set(), 0, 0, 0, 0
+        rcpt = recipient.strip().lower()
+        for u in urls:
+            p = urlparse(u)
+            reg = registered_domain((p.hostname or "").lower())
+            if reg and reg != sender_registered:
+                regs.add(reg)
+                if not tranco_is_trusted(reg)[0]:
+                    untrusted.add(reg)
+            http += p.scheme == "http"
+            maxlen = max(maxlen, len(u))
+            depth = max(depth, p.path.count("/"))
+            low = u.lower()
+            email |= int("@" in (p.query + p.fragment) or bool(rcpt and rcpt in low) or bool(re.search(r"[?&=/]\w+%40\w+", low)))
+        return {"n_untrusted_dom": min(len(untrusted), 10), "untrusted_ratio": len(untrusted) / len(regs) if regs else 0.0,
+                "http_ratio": http / len(urls), "url_maxlen": min(maxlen, 300) / 100.0, "url_depth": min(depth, 8), "url_email": email}
+
     def check_urls(self, content: str, sender_registered: str, brand_sender: bool = False) -> list:
         """Heuristics on destinations that are not the sender's own domain."""
         findings, seen = [], set()
-        for url in URL_RE.findall(content):
+        for url in URL_RE.findall(content)[:200]:
             host = (urlparse(url).hostname or "").lower()
             reg = registered_domain(host)
             if not host or reg == sender_registered or reg in seen:
@@ -593,10 +859,11 @@ class PhishingDetector:
 
     # ── Main entry ────────────────────────────────────────────────────────
     def analyze(self, data: dict) -> dict:
-        sender   = data.get("sender",   "")
-        subject  = data.get("subject",  "")
-        content  = data.get("content",  "")
-        reply_to = data.get("reply_to", "")
+        data = _sanitize_input(data)
+        sender   = data["sender"]
+        subject  = data["subject"]
+        content  = data["content"]
+        reply_to = data["reply_to"]
 
         domain   = self.extract_domain(sender)
         display, local = self.parse_sender(sender)
@@ -614,9 +881,12 @@ class PhishingDetector:
         is_brand_domain = registered in PROTECTED_DOMAINS and not freemail
         role_local = bool(set(re.split(r"[^a-z]+", local)) & (ROLE_WORDS | {"mail", "services", "info", "donotreply"}))
 
+        points_by_signal = {}
+
         def add(points, wtype, severity, message, detail=""):
             nonlocal risk_level
             risk_level += points
+            points_by_signal[wtype] = points_by_signal.get(wtype, 0) + points
             warnings.append({"type": wtype, "severity": severity, "message": message, "detail": detail})
 
         # ── 1. Sender identity ────────────────────────────────────────────
@@ -698,7 +968,7 @@ class PhishingDetector:
         # ── 2. Brand named in the message that doesn't match the sender ───
         if not trusted:
             mentioned = [b for b in self.brands_in_text(text) if registered not in PROTECTED[b]]
-            if mentioned and INTENT_RE.search(text):
+            if mentioned and INTENT_RE.search(text) and URL_RE.search(content):
                 add(30, "BRAND_MISMATCH", "HIGH",
                     f"Message asks you to act on your {mentioned[0]} account, but the sender is '{registered}'",
                     "Account-action wording combined with a brand that does not own the sender domain.")
@@ -726,13 +996,22 @@ class PhishingDetector:
                 ", ".join(sorted(set(obf))[:3]))
         if not trusted and not data.get("list_id") and (has_link or ACTION_RE.search(lure_text)) and PAYMENT_LURE_RE.search(lure_text):
             add(15, "PAYMENT_LURE", "MEDIUM", "Message warns about a payment / membership problem and asks you to act")
+        if not trusted and not data.get("list_id"):
+            if DEAR_RE.search(lure_text):
+                add(6, "GENERIC_GREETING", "LOW", "Impersonal greeting ('Dear user / customer') typical of mass phishing")
+            if has_link:
+                low = lure_text.lower()
+                hits = {ph for lang in INTL_PHRASES.values() for ph in lang if ph in low}
+                if len(hits) >= 2:
+                    add(15, "FOREIGN_LURE", "MEDIUM", "Account / credential wording in another language together with a link",
+                        ", ".join(sorted(hits)[:4]))
         if display and ADMIN_DISPLAY_RE.search(display) and not is_brand_domain and not data.get("list_id"):
             if (ACTION_RE.search(lure_text) or THREAT_RE.search(lure_text) or DOCSHARE_RE.search(lure_text)) and (CLICK_RE.search(lure_text) or has_link):
                 add(25, "ADMIN_IMPERSONATION", "MEDIUM",
                     "Sender poses as an IT / mail administrator and asks you to act on your account",
                     f"Display name: '{display}'")
 
-        if not trusted and not data.get("list_id") and has_link and DOCSHARE_RE.search(lure_text):
+        if not trusted and not data.get("list_id") and has_link and (DOCSHARE_RE.search(lure_text) or NEWFILE_RE.search(lure_text)):
             add(20, "DOCUMENT_LURE", "MEDIUM", "Message announces a shared document / pending mail and pushes you to open a link",
                 "A common way to lead to a fake login page.")
 
@@ -748,15 +1027,30 @@ class PhishingDetector:
                 label = od.split(".")[0]
                 in_display = od in display or (len(label) >= 4 and re.search(r"\b" + re.escape(label) + r"\b", display))
                 in_subject = od in subject.lower() or (len(label) >= 4 and re.search(r"\b" + re.escape(label) + r"\b", subject.lower()))
+                addr_in_subject = bool(data["recipient"]) and data["recipient"].strip().lower() in subject.lower()
                 if in_display:
                     add(35, "ORG_IMPERSONATION", "HIGH",
                         f"Display name uses your organisation's name ('{od}') but the sender is '{registered}'",
                         f"Display name: '{display}'")
                     break
                 if in_subject and (ACTION_RE.search(lure_text) or THREAT_RE.search(lure_text)):
-                    add(20, "ORG_IMPERSONATION", "MEDIUM",
+                    add(20 if addr_in_subject else 8, "ORG_IMPERSONATION", "MEDIUM",
                         f"Subject refers to your organisation ('{od}') with an account warning, from '{registered}'")
                     break
+
+        # Mail "from you" or from your own domain that pressures you to act: forged internal sender
+        rcpt = data["recipient"].strip().lower()
+        m_addr = re.search(r"<([^>]+)>", sender)
+        s_addr = (m_addr.group(1) if m_addr else sender).strip().lower()
+        pressure = bool(ACTION_RE.search(lure_text) or THREAT_RE.search(lure_text) or DOCSHARE_RE.search(lure_text)
+                        or PAYMENT_LURE_RE.search(lure_text))
+        if pressure and not data.get("list_id"):
+            if rcpt and s_addr == rcpt:
+                add(30, "SPOOFED_SELF", "HIGH", "The message claims to be from your own address but pressures you to act on an account",
+                    "Spammers forge the recipient's own address as the sender.")
+            elif owners and registered in owners and not is_brand_domain:
+                add(15, "INTERNAL_LURE", "MEDIUM", f"Message from your own domain ('{registered}') pressures you to verify or update an account",
+                    "Check with the sender: internal IT rarely asks for credentials by email.")
 
         if not trusted:
             cats = sum(bool(r.search(lure_text)) for r in (THREAT_RE, ACTION_RE, URGENCY_RE))
@@ -789,7 +1083,7 @@ class PhishingDetector:
                 add(take, "SUSPICIOUS_LINK", "HIGH" if sev == "high" else "MEDIUM", msg)
 
         # Mail that claims to be a brand but links only to other domains, or to a free-hosting platform
-        link_regs = {registered_domain(urlparse(u).hostname or "") for u in URL_RE.findall(content)}
+        link_regs = {registered_domain(urlparse(u).hostname or "") for u in URL_RE.findall(content)[:500]}
         link_regs.discard("")
         claimed = dn_brand or (is_brand_domain and role_local and next((b for b, d in PROTECTED.items() if registered in d), None))
         if claimed and link_regs and not (link_regs & (PROTECTED[claimed] | {registered})):
@@ -903,16 +1197,38 @@ class PhishingDetector:
         combined_score = min(risk_level + spam_part, 100)
         combined_risk  = "HIGH" if combined_score >= 55 else "MEDIUM" if combined_score >= 25 else "LOW"
 
+        # ── Learned combination of the signals (rules still supply every explanation) ──
+        rule_score, model_info = combined_score, None
+        m_addr = re.search(r"<([^>]+)>", sender)
+        local_part = (m_addr.group(1) if m_addr else sender).strip().lower().split("@")[0]
+        urls = URL_RE.findall(content)[:200]
+        features = scoring_model.featurize(points_by_signal, spam["spam_score"], trusted, freemail, local_part,
+                                           registered, subject, len(urls), len(link_regs), self._link_stats(urls, registered, data["recipient"]))
+        if self.model is not None:
+            try:
+                raw = self.model.raw(features)
+                floor = self.model.unsupported_points(points_by_signal)
+                combined_score = max(self.model.risk(raw), min(100, floor))
+                combined_risk = "HIGH" if combined_score >= 55 else "MEDIUM" if combined_score >= 25 else "LOW"
+                model_info = {"version": self.model.version, "raw": round(raw, 3), "rule_floor": min(100, floor)}
+            except Exception:                                    # a broken model must never break analysis
+                combined_score, model_info = rule_score, None
+                combined_risk = "HIGH" if combined_score >= 55 else "MEDIUM" if combined_score >= 25 else "LOW"
+
         return {
             "sender":          sender,
             "domain":          domain,
             "risk_score":      combined_risk,
             "risk_level":      combined_score,
+            "rule_score":      rule_score,
+            "model":           model_info,
             "phishing_score":  risk_level,
+            "signal_points":   points_by_signal,
             "spam":            spam,
             "warnings":        warnings + spam["signals"],
             "domain_analysis": da,
             "domain_age":      age_info,
             "keywords_found":  keywords,
             "link_mismatches": mismatches,
+            **({"model_features": features} if self.return_features else {}),
         }
