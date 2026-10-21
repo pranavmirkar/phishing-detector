@@ -662,7 +662,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 .src-detail .form-group:last-child { margin-bottom: 0; }
 
 .file-list { list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: .8rem; }
-.file-list li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.file-list li { display: flex; align-items: flex-start; gap: 8px; }
+.file-list li .notice-dot { margin-top: 7px; }
+.file-list li a { flex: 1; min-width: 0; }
+.file-list li .muted { white-space: nowrap; }
 .file-list a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--border-2); }
 .check { display: flex; align-items: flex-start; gap: 8px; font-size: .8rem; color: var(--text); margin-top: 12px; cursor: pointer; }
 .check input { margin-top: 3px; accent-color: var(--text); }

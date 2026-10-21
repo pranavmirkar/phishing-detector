@@ -292,7 +292,7 @@ export default function Benchmarks({ theme }) {
                 </div>
                 <label className="check">
                   <input type="checkbox" checked={spam} onChange={e => setSpam(e.target.checked)} />
-                  Also score SpamAssassin spam <span className="muted">(reported separately; it is spam, not phishing)</span>
+                  <span>Also score SpamAssassin spam <span className="muted">(reported separately; it is spam, not phishing)</span></span>
                 </label>
               </div>
             )}
