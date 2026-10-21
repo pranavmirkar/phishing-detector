@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard'
 import Analyzer from './pages/Analyzer'
 import History from './pages/History'
 import Patterns from './pages/Patterns'
+import Benchmarks from './pages/Benchmarks'
 import { api } from './api/client'
 import { useTheme } from './theme'
 
@@ -26,6 +27,7 @@ export default function App() {
         {page === 'analyze'   && <Analyzer />}
         {page === 'history'   && <History />}
         {page === 'patterns'  && <Patterns />}
+        {page === 'benchmarks' && <Benchmarks theme={theme} />}
       </main>
     </div>
   )

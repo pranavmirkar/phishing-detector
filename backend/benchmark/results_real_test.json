@@ -7,19 +7,19 @@
   "crashes": 0,
   "medium_or_above": {
     "phishing_recall": 0.7549668874172185,
-    "legit_false_positive_rate": 0.0125,
-    "precision": 0.957983193277311,
-    "f1": 0.8444444444444444,
-    "balanced_accuracy": 0.8712334437086092,
-    "spam_flag_rate": 0.4075
+    "legit_false_positive_rate": 0.01,
+    "precision": 0.9661016949152542,
+    "f1": 0.8475836431226765,
+    "balanced_accuracy": 0.8724834437086092,
+    "spam_flag_rate": 0.3925
   },
   "high_only": {
     "phishing_recall": 0.40397350993377484,
-    "legit_false_positive_rate": 0.0075,
-    "precision": 0.953125,
-    "f1": 0.5674418604651162,
-    "balanced_accuracy": 0.6982367549668874,
-    "spam_flag_rate": 0.11
+    "legit_false_positive_rate": 0.005,
+    "precision": 0.9682539682539683,
+    "f1": 0.5700934579439253,
+    "balanced_accuracy": 0.6994867549668875,
+    "spam_flag_rate": 0.075
   },
   "top_signals_on_missed_phishing": [
     [
@@ -57,18 +57,6 @@
   ],
   "top_signals_on_false_positives": [
     [
-      "SPAM_KEYWORDS",
-      2
-    ],
-    [
-      "SUBDOMAIN_ABUSE",
-      2
-    ],
-    [
-      "SUSPICIOUS_KEYWORDS",
-      2
-    ],
-    [
       "BRAND_MISMATCH",
       2
     ],
@@ -77,8 +65,20 @@
       2
     ],
     [
+      "SPAM_KEYWORDS",
+      1
+    ],
+    [
+      "SUSPICIOUS_KEYWORDS",
+      1
+    ],
+    [
+      "LOOKALIKE_DOMAIN",
+      1
+    ],
+    [
       "REPLY_TO_MISMATCH",
-      2
+      1
     ],
     [
       "TRUSTED_VERIFIED",
@@ -87,9 +87,8 @@
   ],
   "false_positive_sender_domains": [
     "birch.net",
+    "dman.ddts.net",
     "doolin.com",
-    "mail.banirh.com",
-    "sbcglobal.net",
-    "tele-punt-22.mail.demon.net"
+    "sbcglobal.net"
   ]
 }

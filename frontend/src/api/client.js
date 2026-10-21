@@ -5,7 +5,11 @@ async function req(path, opts = {}) {
     headers: { 'Content-Type': 'application/json' },
     ...opts,
   })
-  if (!res.ok) throw new Error(`API error ${res.status}`)
+  if (!res.ok) {
+    // Prefer the server's own message ("A benchmark is already running.") over a bare status code.
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.error || `API error ${res.status}`)
+  }
   return res.json()
 }
 
@@ -20,4 +24,11 @@ export const api = {
   intelStatus: ()            => req('/intel/status'),
   intelUpdate: ()            => req('/intel/update',  { method: 'POST' }),
   intelWhois:  (domain)      => req('/intel/whois',   { method: 'POST', body: JSON.stringify({ domain }) }),
+
+  benchDatasets:     ()        => req('/benchmarks/datasets'),
+  benchResults:      ()        => req('/benchmarks/results'),
+  benchRun:          (spec)    => req('/benchmarks/run',           { method: 'POST',   body: JSON.stringify(spec) }),
+  benchJob:          (id)      => req(`/benchmarks/jobs/${id}`),
+  benchDownload:     (spam)    => req('/benchmarks/real/download', { method: 'POST',   body: JSON.stringify({ include_spam: spam }) }),
+  benchDeleteReal:   ()        => req('/benchmarks/real',          { method: 'DELETE' }),
 }

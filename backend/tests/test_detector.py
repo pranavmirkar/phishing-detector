@@ -105,6 +105,12 @@ def test_subdomain_abuse():
     assert "SUBDOMAIN_ABUSE" in types(r) and r["risk_score"] == "HIGH"
 
 
+def test_generic_host_words_are_not_brands():
+    # "mail" is the label of mail.ru (a popular domain): it must not turn every mail.<host> into subdomain abuse
+    assert "SUBDOMAIN_ABUSE" not in types(run("bob@mail.somecompany.com", "hi", "see you"))
+    assert "SUBDOMAIN_ABUSE" not in types(run("bob@tele-punt-22.mail.demon.net", "hi", "see you"))
+
+
 def test_homoglyph_domain_not_triggered_by_innocent_digits_or_cl():
     assert "HOMOGLYPH_ATTACK" not in types(run("a@harborviewclinic.org"))
     assert "HOMOGLYPH_ATTACK" not in types(run("a@web3-tools.io"))

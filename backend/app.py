@@ -3,6 +3,7 @@ from flask_cors import CORS
 import sqlite3, json, logging, re
 from datetime import datetime
 from detector import PhishingDetector
+from benchmark_service import bp as benchmarks_bp
 from domain_intel import (
     init_intel_tables,
     needs_update,
@@ -18,7 +19,9 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024      # custom benchmark uploads
 CORS(app, origins=["http://localhost:3000", "http://localhost:5173"])
+app.register_blueprint(benchmarks_bp)
 DB = "phishing.db"
 
 EMAIL_RE = re.compile(r'.+@[\w.\-]+\.\w+')
@@ -75,6 +78,9 @@ def index():
             "GET  /api/intel/status",
             "POST /api/intel/update",
             "POST /api/intel/whois",
+            "GET  /api/benchmarks/datasets",
+            "POST /api/benchmarks/run",
+            "GET  /api/benchmarks/jobs/<id>",
         ],
         "intel": intel,
     })

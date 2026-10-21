@@ -11,7 +11,7 @@
     "precision": 1.0,
     "f1": 0.9175627240143369,
     "balanced_accuracy": 0.923841059602649,
-    "spam_flag_rate": 0.45
+    "spam_flag_rate": 0.445
   },
   "high_only": {
     "phishing_recall": 0.5033112582781457,
@@ -19,7 +19,7 @@
     "precision": 1.0,
     "f1": 0.669603524229075,
     "balanced_accuracy": 0.7516556291390728,
-    "spam_flag_rate": 0.115
+    "spam_flag_rate": 0.095
   },
   "top_signals_on_missed_phishing": [
     [

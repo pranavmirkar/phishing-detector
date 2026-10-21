@@ -6,3 +6,5 @@ __pycache__/
 backend/phishing.db*
 .claude/
 .env
+backend/benchmark/data/
+backend/benchmark/runs/

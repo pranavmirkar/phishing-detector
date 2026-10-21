@@ -29,6 +29,14 @@ const NAV = [
     ),
   },
   {
+    id: 'benchmarks', label: 'Benchmarks',
+    icon: (
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 17V9M8 17V4M13 17v-6M18 17H2"/>
+      </svg>
+    ),
+  },
+  {
     id: 'patterns', label: 'Attack Patterns',
     icon: (
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">

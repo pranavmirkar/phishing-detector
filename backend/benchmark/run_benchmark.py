@@ -15,14 +15,12 @@ Notes
   numbers can shift slightly if that list is refreshed.
 - Positive class = phishing.
 """
+import argparse
 import json
 import os
-import random
 import sys
 from collections import defaultdict
 from datetime import date
-
-import argparse
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ap = argparse.ArgumentParser()
@@ -35,15 +33,25 @@ ARGS = ap.parse_args()
 BACKEND = os.path.abspath(ARGS.backend)
 os.chdir(BACKEND)               # detector opens "phishing.db" relatively
 sys.path.insert(0, BACKEND)
+sys.path.append(os.path.dirname(HERE))   # this repo's `benchmark` package, even when --backend points elsewhere
 SUFFIX = f"_{ARGS.tag}" if ARGS.tag else ""
 
 import detector as detector_mod  # noqa: E402
 from domain_intel import get_intel_status  # noqa: E402
+from benchmark.metrics import (  # noqa: E402
+    MEDIUM_T, HIGH_T, metrics, auc, stratified_split, best_threshold,
+)
 
-detector_mod.check_domain_age = lambda domain: {}   # offline: no WHOIS
-
-MEDIUM_T, HIGH_T = 25, 55       # the detector's own MEDIUM / HIGH cut-offs
 SEED = 7
+
+
+def make_detector():
+    """Detector with WHOIS off (offline, repeatable). Older copies without the flag are patched."""
+    try:
+        return detector_mod.PhishingDetector(use_whois=False)
+    except TypeError:
+        detector_mod.check_domain_age = lambda domain: {}
+        return detector_mod.PhishingDetector()
 
 
 def load():
@@ -52,7 +60,7 @@ def load():
 
 
 def run(rows):
-    det = detector_mod.PhishingDetector()
+    det = make_detector()
     out = []
     for r in rows:
         res = det.analyze({
@@ -62,62 +70,6 @@ def run(rows):
         out.append({**r, "score": res["risk_level"], "level": res["risk_score"],
                     "signals": sorted({w["type"] for w in res["warnings"]})})
     return out
-
-
-def confusion(rows, thr):
-    tp = sum(r["label"] == "phishing" and r["score"] >= thr for r in rows)
-    fn = sum(r["label"] == "phishing" and r["score"] < thr for r in rows)
-    fp = sum(r["label"] == "legit" and r["score"] >= thr for r in rows)
-    tn = sum(r["label"] == "legit" and r["score"] < thr for r in rows)
-    return tp, fp, tn, fn
-
-
-def metrics(rows, thr):
-    tp, fp, tn, fn = confusion(rows, thr)
-    n = tp + fp + tn + fn
-    prec = tp / (tp + fp) if tp + fp else 0.0
-    rec = tp / (tp + fn) if tp + fn else 0.0
-    spec = tn / (tn + fp) if tn + fp else 0.0
-    f1 = 2 * prec * rec / (prec + rec) if prec + rec else 0.0
-    return {
-        "threshold": thr, "n": n, "tp": tp, "fp": fp, "tn": tn, "fn": fn,
-        "accuracy": (tp + tn) / n if n else 0.0,
-        "balanced_accuracy": (rec + spec) / 2,
-        "precision": prec, "recall": rec, "specificity": spec, "f1": f1,
-        "false_positive_rate": 1 - spec,
-    }
-
-
-def auc(rows):
-    pos = [r["score"] for r in rows if r["label"] == "phishing"]
-    neg = [r["score"] for r in rows if r["label"] == "legit"]
-    wins = sum((p > q) + 0.5 * (p == q) for p in pos for q in neg)
-    return wins / (len(pos) * len(neg))
-
-
-def stratified_split(rows, test_frac=0.3):
-    rnd = random.Random(SEED)
-    dev, test = [], []
-    by = defaultdict(list)
-    for r in rows:
-        by[r["label"]].append(r)
-    for items in by.values():
-        items = items[:]
-        rnd.shuffle(items)
-        k = round(len(items) * test_frac)
-        test += items[:k]
-        dev += items[k:]
-    return dev, test
-
-
-def best_threshold(rows):
-    best = None
-    for t in range(5, 101, 5):
-        m = metrics(rows, t)
-        key = (m["f1"], t)
-        if best is None or key > best[0]:
-            best = (key, t)
-    return best[1]
 
 
 def pct(x):
@@ -132,7 +84,7 @@ def main():
     op = {"medium_or_above": metrics(rows, MEDIUM_T), "high_only": metrics(rows, HIGH_T)}
     sweep = [metrics(rows, t) for t in range(5, 101, 5)]
 
-    dev, test = stratified_split(rows)
+    dev, test = stratified_split(rows, 0.3, SEED)
     tuned_t = best_threshold(dev)
     holdout = {
         "dev_n": len(dev), "test_n": len(test), "threshold_chosen_on_dev": tuned_t,

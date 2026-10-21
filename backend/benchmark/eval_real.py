@@ -18,82 +18,33 @@ Caveats worth stating next to any number this prints:
 Only aggregate metrics and sender domains (no message text) are written to disk.
 """
 import argparse
-import email
 import json
-import mailbox
 import os
 import random
 import sys
-import zlib
-import tarfile
 from collections import Counter
-from email import policy
-from email.utils import parseaddr
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BACKEND = os.environ.get("PG_BACKEND", os.path.dirname(HERE))   # PG_BACKEND: evaluate another copy of the backend
 os.chdir(BACKEND)
 sys.path.insert(0, BACKEND)
+sys.path.append(os.path.dirname(HERE))
 
 import detector as detector_mod  # noqa: E402
-
-detector_mod.check_domain_age = lambda domain: {}
-
-MEDIUM_T, HIGH_T = 25, 55
+from benchmark.corpora import read_mbox, read_tar, half  # noqa: E402
+from benchmark.metrics import MEDIUM_T, HIGH_T  # noqa: E402
 
 
-def body_of(msg):
-    plain, html = "", ""
-    for part in msg.walk():
-        if part.is_multipart():
-            continue
-        ctype = part.get_content_type()
-        if ctype not in ("text/plain", "text/html"):
-            continue
-        try:
-            text = part.get_content()
-        except Exception:
-            continue
-        if not isinstance(text, str):
-            continue
-        if ctype == "text/html":
-            html += text
-        else:
-            plain += text
-    return (html or plain)[:12000], plain[:4000]
-
-
-def to_sample(msg):
-    name, addr = parseaddr(str(msg.get("From", "")))
-    if "@" not in addr:
-        return None
-    rt_name, rt_addr = parseaddr(str(msg.get("Reply-To", "")))
-    body, _ = body_of(msg)
-    sender = f'"{name}" <{addr}>' if name else addr
-    return {"sender": sender, "reply_to": rt_addr if "@" in rt_addr else "",
-            "subject": str(msg.get("Subject", ""))[:300], "content": body}
-
-
-def read_mbox(path):
-    for m in mailbox.mbox(path, factory=lambda f: email.message_from_binary_file(f, policy=policy.default)):
-        s = to_sample(m)
-        if s:
-            yield s
-
-
-def read_tar(path):
-    with tarfile.open(path, "r:bz2") as tf:
-        for member in tf:
-            if not member.isfile() or member.name.endswith(("cmds", ".cmds")):
-                continue
-            data = tf.extractfile(member).read()
-            s = to_sample(email.message_from_bytes(data, policy=policy.default))
-            if s:
-                yield s
+def make_detector():
+    try:
+        return detector_mod.PhishingDetector(use_whois=False)
+    except TypeError:
+        detector_mod.check_domain_age = lambda domain: {}
+        return detector_mod.PhishingDetector()
 
 
 def score(samples):
-    det = detector_mod.PhishingDetector()
+    det = make_detector()
     out = []
     for s in samples:
         try:
@@ -119,9 +70,6 @@ def main():
     sets = {"phishing": list(read_mbox(a.phishing)), "legit": list(read_tar(a.ham))}
     if a.spam:
         sets["spam"] = list(read_tar(a.spam))
-    def half(s):
-        return "dev" if zlib.crc32((s["sender"] + s["subject"]).encode("utf-8", "ignore")) % 2 == 0 else "test"
-
     for k, v in sets.items():
         if a.split != "all":
             v = [s for s in v if half(s) == a.split]

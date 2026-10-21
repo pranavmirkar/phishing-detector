@@ -140,6 +140,13 @@ PROTECTED_DOMAINS = {d for ds in PROTECTED.values() for d in ds}
 SAME_NAME_RISKY_TLDS = ABUSED_TLDS | {"info", "biz", "net", "org", "co", "cc", "ws", "pw", "tech", "store",
                                       "link", "email", "pro", "mobi", "name"}
 
+# Host labels that say what a machine does, not who owns it.
+GENERIC_HOST_WORDS = LURE_WORDS | {
+    "mail", "email", "www", "smtp", "imap", "webmail", "static", "cloud", "cdn", "api", "server", "ftp",
+    "news", "blog", "shop", "store", "video", "media", "images", "files", "download", "update", "updates",
+    "search", "maps", "drive", "docs", "play", "games", "music", "photos", "radio", "live", "world",
+}
+
 GENERIC_DISPLAY = ROLE_WORDS | {
     "com", "net", "online", "express", "inc", "corp", "corporation", "llc", "ltd", "bank", "banking",
     "group", "mobile", "web", "mail", "email", "financial", "credit", "union", "federal", "the", "of",
@@ -210,8 +217,10 @@ def _osa(a: str, b: str) -> int:
 
 
 class PhishingDetector:
-    def __init__(self, threshold: int = 2):
+    def __init__(self, threshold: int = 2, use_whois: bool = True):
         self.threshold = threshold
+        # Benchmarks turn WHOIS off so runs are offline, fast and repeatable.
+        self.use_whois = use_whois
 
     # ── Parsing helpers ───────────────────────────────────────────────────
     def extract_domain(self, email: str) -> str:
@@ -277,10 +286,12 @@ class PhishingDetector:
             for t in tokens:
                 if t == brand or (len(brand) >= 5 and brand in t):
                     return {"impersonating": sorted(legit)[0], "actual_domain": registered, "prefix": prefix}
+        # Other very popular names (whole words only, and never generic host words such as
+        # "mail" or "login", which would match every mail.<host> subdomain).
         pool = get_levenshtein_pool()
-        for td in pool[:200]:            # top-200 covers all major brands
+        for td in pool[:200]:
             brand = td.split(".")[0]
-            if len(brand) >= 4 and brand in prefix and registered != td:
+            if len(brand) >= 5 and brand not in GENERIC_HOST_WORDS and brand in tokens and registered != td:
                 return {"impersonating": td, "actual_domain": registered, "prefix": prefix}
         return None
 
@@ -709,7 +720,7 @@ class PhishingDetector:
 
         # ── 7. Domain age check (WHOIS) — untrusted, non-freemail only ────
         age_info = {}
-        if not trusted and not freemail:
+        if self.use_whois and not trusted and not freemail:
             age_info = check_domain_age(domain)
             if age_info.get("age_days") is not None:
                 if age_info["age_days"] < 30:
