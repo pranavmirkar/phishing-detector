@@ -22,10 +22,20 @@ import sys
 from collections import defaultdict
 from datetime import date
 
+import argparse
+
 HERE = os.path.dirname(os.path.abspath(__file__))
-BACKEND = os.path.dirname(HERE)
+ap = argparse.ArgumentParser()
+ap.add_argument("--dataset", default="dataset.jsonl", help="file inside benchmark/")
+ap.add_argument("--tag", default="", help="suffix for results/report file names, e.g. holdout")
+ap.add_argument("--backend", default=os.path.dirname(HERE),
+                help="backend folder to evaluate (default: this repo's backend)")
+ap.add_argument("--no-report", action="store_true", help="print metrics only, do not write files")
+ARGS = ap.parse_args()
+BACKEND = os.path.abspath(ARGS.backend)
 os.chdir(BACKEND)               # detector opens "phishing.db" relatively
 sys.path.insert(0, BACKEND)
+SUFFIX = f"_{ARGS.tag}" if ARGS.tag else ""
 
 import detector as detector_mod  # noqa: E402
 from domain_intel import get_intel_status  # noqa: E402
@@ -37,7 +47,7 @@ SEED = 7
 
 
 def load():
-    with open(os.path.join(HERE, "dataset.jsonl"), encoding="utf-8") as f:
+    with open(os.path.join(HERE, ARGS.dataset), encoding="utf-8") as f:
         return [json.loads(line) for line in f]
 
 
@@ -154,9 +164,10 @@ def main():
         "operating_points": op, "holdout": holdout, "per_category": per_cat,
         "errors": errors, "sweep": sweep,
     }
-    with open(os.path.join(HERE, "results.json"), "w", encoding="utf-8") as f:
-        json.dump(results, f, indent=2)
-    write_report(results)
+    if not ARGS.no_report:
+        with open(os.path.join(HERE, f"results{SUFFIX}.json"), "w", encoding="utf-8") as f:
+            json.dump(results, f, indent=2)
+        write_report(results)
 
     m = op["medium_or_above"]
     print(f"{total} samples | MEDIUM+ accuracy {pct(m['accuracy'])}  precision {pct(m['precision'])}  "
@@ -166,7 +177,8 @@ def main():
           f"recall {pct(h['recall'])}  F1 {pct(h['f1'])}")
     t = holdout["test"]
     print(f"held-out test ({holdout['test_n']}) @ threshold {tuned_t}: accuracy {pct(t['accuracy'])}  F1 {pct(t['f1'])}")
-    print("report ->", os.path.join(HERE, "REPORT.md"))
+    if not ARGS.no_report:
+        print("report ->", os.path.join(HERE, f"REPORT{SUFFIX}.md"))
 
 
 def mrow(name, m):
@@ -177,7 +189,7 @@ def mrow(name, m):
 def write_report(r):
     op, ho = r["operating_points"], r["holdout"]
     L = []
-    L.append("# PhishGuard validation benchmark\n")
+    L.append(f"# PhishGuard validation benchmark ({ARGS.tag or 'development'} set)\n")
     L.append(f"Run date: {r['date']}  |  Samples: {r['samples']} "
              f"({r['phishing']} phishing, {r['legit']} legitimate)  |  Trusted-domain list: "
              f"{r['tranco_domains']:,} Tranco domains  |  ROC AUC: **{r['auc']:.3f}**\n")
@@ -229,7 +241,7 @@ def write_report(r):
              "- WHOIS domain-age scoring was disabled, so brand-new-domain detection is not evaluated.\n"
              "- Only the sender domain, subject and body are scored; attachments, headers (SPF/DKIM/DMARC) and "
              "message rendering are out of scope.\n")
-    with open(os.path.join(HERE, "REPORT.md"), "w", encoding="utf-8") as f:
+    with open(os.path.join(HERE, f"REPORT{SUFFIX}.md"), "w", encoding="utf-8") as f:
         f.write("\n".join(L))
 
 

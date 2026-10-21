@@ -1,90 +1,90 @@
 {
-  "date": "2026-10-21",
-  "samples": 305,
-  "phishing": 192,
+  "date": "2026-10-22",
+  "samples": 306,
+  "phishing": 193,
   "legit": 113,
   "tranco_domains": 50000,
-  "auc": 0.9174041297935103,
+  "auc": 1.0,
   "operating_points": {
     "medium_or_above": {
       "threshold": 25,
-      "n": 305,
-      "tp": 160,
-      "fp": 18,
-      "tn": 95,
-      "fn": 32,
-      "accuracy": 0.8360655737704918,
-      "balanced_accuracy": 0.8370206489675516,
-      "precision": 0.898876404494382,
-      "recall": 0.8333333333333334,
-      "specificity": 0.8407079646017699,
-      "f1": 0.8648648648648649,
-      "false_positive_rate": 0.15929203539823011
+      "n": 306,
+      "tp": 193,
+      "fp": 0,
+      "tn": 113,
+      "fn": 0,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "specificity": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
     },
     "high_only": {
       "threshold": 55,
-      "n": 305,
-      "tp": 95,
+      "n": 306,
+      "tp": 187,
       "fp": 0,
       "tn": 113,
-      "fn": 97,
-      "accuracy": 0.6819672131147541,
-      "balanced_accuracy": 0.7473958333333334,
+      "fn": 6,
+      "accuracy": 0.9803921568627451,
+      "balanced_accuracy": 0.9844559585492227,
       "precision": 1.0,
-      "recall": 0.4947916666666667,
+      "recall": 0.9689119170984456,
       "specificity": 1.0,
-      "f1": 0.662020905923345,
+      "f1": 0.9842105263157895,
       "false_positive_rate": 0.0
     }
   },
   "holdout": {
-    "dev_n": 213,
+    "dev_n": 214,
     "test_n": 92,
-    "threshold_chosen_on_dev": 20,
+    "threshold_chosen_on_dev": 45,
     "dev": {
-      "threshold": 20,
-      "n": 213,
-      "tp": 118,
-      "fp": 10,
-      "tn": 69,
-      "fn": 16,
-      "accuracy": 0.8779342723004695,
-      "balanced_accuracy": 0.8770073682221802,
-      "precision": 0.921875,
-      "recall": 0.8805970149253731,
-      "specificity": 0.8734177215189873,
-      "f1": 0.9007633587786259,
-      "false_positive_rate": 0.12658227848101267
+      "threshold": 45,
+      "n": 214,
+      "tp": 135,
+      "fp": 0,
+      "tn": 79,
+      "fn": 0,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "specificity": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
     },
     "test": {
-      "threshold": 20,
+      "threshold": 45,
       "n": 92,
-      "tp": 54,
-      "fp": 10,
-      "tn": 24,
-      "fn": 4,
-      "accuracy": 0.8478260869565217,
-      "balanced_accuracy": 0.8184584178498986,
-      "precision": 0.84375,
-      "recall": 0.9310344827586207,
-      "specificity": 0.7058823529411765,
-      "f1": 0.8852459016393444,
-      "false_positive_rate": 0.2941176470588235
+      "tp": 58,
+      "fp": 0,
+      "tn": 34,
+      "fn": 0,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "specificity": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
     },
     "test_at_default_medium": {
       "threshold": 25,
       "n": 92,
-      "tp": 52,
-      "fp": 8,
-      "tn": 26,
-      "fn": 6,
-      "accuracy": 0.8478260869565217,
-      "balanced_accuracy": 0.8306288032454361,
-      "precision": 0.8666666666666667,
-      "recall": 0.896551724137931,
-      "specificity": 0.7647058823529411,
-      "f1": 0.8813559322033899,
-      "false_positive_rate": 0.23529411764705888
+      "tp": 58,
+      "fp": 0,
+      "tn": 34,
+      "fn": 0,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "specificity": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
     }
   },
   "per_category": [
@@ -92,9 +92,9 @@
       "label": "legit",
       "category": "legit_name_collision",
       "n": 6,
-      "correct": 5,
-      "rate": 0.8333333333333334,
-      "mean_score": 4.166666666666667
+      "correct": 6,
+      "rate": 1.0,
+      "mean_score": 0.0
     },
     {
       "label": "legit",
@@ -110,23 +110,23 @@
       "n": 32,
       "correct": 32,
       "rate": 1.0,
-      "mean_score": 1.25
+      "mean_score": 0.0
     },
     {
       "label": "legit",
       "category": "trusted_marketing",
       "n": 21,
-      "correct": 12,
-      "rate": 0.5714285714285714,
-      "mean_score": 20.285714285714285
+      "correct": 21,
+      "rate": 1.0,
+      "mean_score": 0.0
     },
     {
       "label": "legit",
       "category": "trusted_tracking_links",
       "n": 8,
-      "correct": 0,
-      "rate": 0.0,
-      "mean_score": 26.0
+      "correct": 8,
+      "rate": 1.0,
+      "mean_score": 0.0
     },
     {
       "label": "legit",
@@ -140,17 +140,17 @@
       "label": "phishing",
       "category": "bec_freemail_text_only",
       "n": 12,
-      "correct": 0,
-      "rate": 0.0,
-      "mean_score": 5.0
+      "correct": 12,
+      "rate": 1.0,
+      "mean_score": 61.25
     },
     {
       "label": "phishing",
       "category": "brand_hyphen",
       "n": 22,
-      "correct": 20,
-      "rate": 0.9090909090909091,
-      "mean_score": 34.81818181818182
+      "correct": 22,
+      "rate": 1.0,
+      "mean_score": 99.5909090909091
     },
     {
       "label": "phishing",
@@ -158,7 +158,7 @@
       "n": 21,
       "correct": 21,
       "rate": 1.0,
-      "mean_score": 94.52380952380952
+      "mean_score": 100.0
     },
     {
       "label": "phishing",
@@ -166,7 +166,7 @@
       "n": 12,
       "correct": 12,
       "rate": 1.0,
-      "mean_score": 50.416666666666664
+      "mean_score": 98.33333333333333
     },
     {
       "label": "phishing",
@@ -174,31 +174,31 @@
       "n": 12,
       "correct": 12,
       "rate": 1.0,
-      "mean_score": 45.166666666666664
+      "mean_score": 58.0
     },
     {
       "label": "phishing",
       "category": "subdomain_abuse",
       "n": 22,
-      "correct": 19,
-      "rate": 0.8636363636363636,
-      "mean_score": 69.5909090909091
+      "correct": 22,
+      "rate": 1.0,
+      "mean_score": 100.0
     },
     {
       "label": "phishing",
       "category": "tld_swap",
-      "n": 22,
-      "correct": 20,
-      "rate": 0.9090909090909091,
-      "mean_score": 48.81818181818182
+      "n": 21,
+      "correct": 21,
+      "rate": 1.0,
+      "mean_score": 100.0
     },
     {
       "label": "phishing",
       "category": "typo_delete",
-      "n": 5,
-      "correct": 5,
+      "n": 6,
+      "correct": 6,
       "rate": 1.0,
-      "mean_score": 74.2
+      "mean_score": 100.0
     },
     {
       "label": "phishing",
@@ -206,23 +206,23 @@
       "n": 22,
       "correct": 22,
       "rate": 1.0,
-      "mean_score": 94.4090909090909
+      "mean_score": 99.0909090909091
     },
     {
       "label": "phishing",
       "category": "typo_insert",
-      "n": 8,
-      "correct": 7,
-      "rate": 0.875,
-      "mean_score": 56.375
+      "n": 10,
+      "correct": 10,
+      "rate": 1.0,
+      "mean_score": 100.0
     },
     {
       "label": "phishing",
       "category": "typo_swap",
-      "n": 10,
-      "correct": 10,
+      "n": 9,
+      "correct": 9,
       "rate": 1.0,
-      "mean_score": 84.3
+      "mean_score": 100.0
     },
     {
       "label": "phishing",
@@ -230,904 +230,317 @@
       "n": 12,
       "correct": 12,
       "rate": 1.0,
-      "mean_score": 51.666666666666664
+      "mean_score": 100.0
     },
     {
       "label": "phishing",
       "category": "unknown_domain_text_only",
       "n": 12,
-      "correct": 0,
-      "rate": 0.0,
-      "mean_score": 1.6666666666666667
+      "correct": 12,
+      "rate": 1.0,
+      "mean_score": 52.666666666666664
     }
   ],
-  "errors": [
-    {
-      "id": 10,
-      "label": "phishing",
-      "category": "bec_freemail_text_only",
-      "sender": "m.harris.director@outlook.com",
-      "score": 0,
-      "level": "LOW",
-      "signals": [
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 14,
-      "label": "phishing",
-      "category": "bec_freemail_text_only",
-      "sender": "m.harris.director@outlook.com",
-      "score": 0,
-      "level": "LOW",
-      "signals": [
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 20,
-      "label": "phishing",
-      "category": "tld_swap",
-      "sender": "security@apple.co",
-      "score": 20,
-      "level": "LOW",
-      "signals": [
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 26,
-      "label": "phishing",
-      "category": "bec_freemail_text_only",
-      "sender": "m.harris.director@outlook.com",
-      "score": 20,
-      "level": "LOW",
-      "signals": [
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 28,
-      "label": "legit",
-      "category": "trusted_marketing",
-      "sender": "offers@booking.com",
-      "score": 26,
-      "level": "MEDIUM",
-      "signals": [
-        "BULK_SENDER",
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 30,
-      "label": "phishing",
-      "category": "subdomain_abuse",
-      "sender": "alerts@binance.login-confirm.live",
-      "score": 20,
-      "level": "LOW",
-      "signals": [
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS"
-      ]
-    },
-    {
-      "id": 35,
-      "label": "legit",
-      "category": "trusted_marketing",
-      "sender": "marketing@airbnb.com",
-      "score": 36,
-      "level": "MEDIUM",
-      "signals": [
-        "BULK_SENDER",
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 42,
-      "label": "phishing",
-      "category": "unknown_domain_text_only",
-      "sender": "notice@id-verification-hub.cfd",
-      "score": 0,
-      "level": "LOW",
-      "signals": []
-    },
-    {
-      "id": 43,
-      "label": "legit",
-      "category": "trusted_marketing",
-      "sender": "deals@target.com",
-      "score": 36,
-      "level": "MEDIUM",
-      "signals": [
-        "BULK_SENDER",
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 52,
-      "label": "phishing",
-      "category": "tld_swap",
-      "sender": "security@coinbase.info",
-      "score": 20,
-      "level": "LOW",
-      "signals": [
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS"
-      ]
-    },
-    {
-      "id": 54,
-      "label": "phishing",
-      "category": "bec_freemail_text_only",
-      "sender": "finance.dept.office@yahoo.com",
-      "score": 20,
-      "level": "LOW",
-      "signals": [
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 60,
-      "label": "phishing",
-      "category": "unknown_domain_text_only",
-      "sender": "notice@auth-service-check.online",
-      "score": 0,
-      "level": "LOW",
-      "signals": []
-    },
-    {
-      "id": 61,
-      "label": "phishing",
-      "category": "unknown_domain_text_only",
-      "sender": "notice@secure-login-verify.xyz",
-      "score": 0,
-      "level": "LOW",
-      "signals": []
-    },
-    {
-      "id": 63,
-      "label": "phishing",
-      "category": "unknown_domain_text_only",
-      "sender": "notice@helpdesk-alerts.work",
-      "score": 0,
-      "level": "LOW",
-      "signals": []
-    },
-    {
-      "id": 70,
-      "label": "phishing",
-      "category": "unknown_domain_text_only",
-      "sender": "notice@accounts-safety.buzz",
-      "score": 0,
-      "level": "LOW",
-      "signals": []
-    },
-    {
-      "id": 76,
-      "label": "phishing",
-      "category": "unknown_domain_text_only",
-      "sender": "notice@verify-id-portal.info",
-      "score": 0,
-      "level": "LOW",
-      "signals": []
-    },
-    {
-      "id": 77,
-      "label": "phishing",
-      "category": "bec_freemail_text_only",
-      "sender": "finance.dept.office@yahoo.com",
-      "score": 0,
-      "level": "LOW",
-      "signals": [
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 86,
-      "label": "legit",
-      "category": "trusted_tracking_links",
-      "sender": "hello@medium.com",
-      "score": 26,
-      "level": "MEDIUM",
-      "signals": [
-        "BULK_SENDER",
-        "LINK_MISMATCH",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 87,
-      "label": "phishing",
-      "category": "unknown_domain_text_only",
-      "sender": "notice@support-notice-team.shop",
-      "score": 0,
-      "level": "LOW",
-      "signals": []
-    },
-    {
-      "id": 90,
-      "label": "legit",
-      "category": "trusted_tracking_links",
-      "sender": "news@nytimes.com",
-      "score": 26,
-      "level": "MEDIUM",
-      "signals": [
-        "BULK_SENDER",
-        "LINK_MISMATCH",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 109,
-      "label": "legit",
-      "category": "trusted_marketing",
-      "sender": "marketing@airbnb.com",
-      "score": 36,
-      "level": "MEDIUM",
-      "signals": [
-        "BULK_SENDER",
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 110,
-      "label": "phishing",
-      "category": "bec_freemail_text_only",
-      "sender": "john.mcallister.ceo@gmail.com",
-      "score": 0,
-      "level": "LOW",
-      "signals": [
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 120,
-      "label": "legit",
-      "category": "trusted_tracking_links",
-      "sender": "hello@medium.com",
-      "score": 26,
-      "level": "MEDIUM",
-      "signals": [
-        "BULK_SENDER",
-        "LINK_MISMATCH",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 126,
-      "label": "phishing",
-      "category": "unknown_domain_text_only",
-      "sender": "notice@billing-review-desk.site",
-      "score": 0,
-      "level": "LOW",
-      "signals": []
-    },
-    {
-      "id": 153,
-      "label": "phishing",
-      "category": "bec_freemail_text_only",
-      "sender": "finance.dept.office@yahoo.com",
-      "score": 0,
-      "level": "LOW",
-      "signals": [
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 155,
-      "label": "phishing",
-      "category": "subdomain_abuse",
-      "sender": "alerts@docusign.helpdesk-alerts.work",
-      "score": 20,
-      "level": "LOW",
-      "signals": [
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS"
-      ]
-    },
-    {
-      "id": 159,
-      "label": "phishing",
-      "category": "unknown_domain_text_only",
-      "sender": "notice@login-confirm.live",
-      "score": 0,
-      "level": "LOW",
-      "signals": []
-    },
-    {
-      "id": 172,
-      "label": "phishing",
-      "category": "bec_freemail_text_only",
-      "sender": "m.harris.director@outlook.com",
-      "score": 0,
-      "level": "LOW",
-      "signals": [
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 179,
-      "label": "phishing",
-      "category": "unknown_domain_text_only",
-      "sender": "notice@mailer-support.click",
-      "score": 20,
-      "level": "LOW",
-      "signals": [
-        "HOMOGLYPH_ATTACK"
-      ]
-    },
-    {
-      "id": 181,
-      "label": "legit",
-      "category": "trusted_marketing",
-      "sender": "deals@target.com",
-      "score": 36,
-      "level": "MEDIUM",
-      "signals": [
-        "BULK_SENDER",
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 185,
-      "label": "phishing",
-      "category": "bec_freemail_text_only",
-      "sender": "john.mcallister.ceo@gmail.com",
-      "score": 0,
-      "level": "LOW",
-      "signals": [
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 187,
-      "label": "phishing",
-      "category": "brand_hyphen",
-      "sender": "security@yahoo-login.com",
-      "score": 20,
-      "level": "LOW",
-      "signals": [
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS"
-      ]
-    },
-    {
-      "id": 192,
-      "label": "phishing",
-      "category": "unknown_domain_text_only",
-      "sender": "notice@secure-pay-center.icu",
-      "score": 0,
-      "level": "LOW",
-      "signals": []
-    },
-    {
-      "id": 197,
-      "label": "legit",
-      "category": "trusted_tracking_links",
-      "sender": "digest@substack.com",
-      "score": 26,
-      "level": "MEDIUM",
-      "signals": [
-        "BULK_SENDER",
-        "LINK_MISMATCH",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 199,
-      "label": "phishing",
-      "category": "brand_hyphen",
-      "sender": "security@apple-support.com",
-      "score": 20,
-      "level": "LOW",
-      "signals": [
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS"
-      ]
-    },
-    {
-      "id": 205,
-      "label": "legit",
-      "category": "legit_name_collision",
-      "sender": "info@zoomin.io",
-      "score": 25,
-      "level": "MEDIUM",
-      "signals": [
-        "SUSPICIOUS_DOMAIN"
-      ]
-    },
-    {
-      "id": 223,
-      "label": "legit",
-      "category": "trusted_tracking_links",
-      "sender": "digest@substack.com",
-      "score": 26,
-      "level": "MEDIUM",
-      "signals": [
-        "BULK_SENDER",
-        "LINK_MISMATCH",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 225,
-      "label": "phishing",
-      "category": "bec_freemail_text_only",
-      "sender": "john.mcallister.ceo@gmail.com",
-      "score": 0,
-      "level": "LOW",
-      "signals": [
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 231,
-      "label": "phishing",
-      "category": "bec_freemail_text_only",
-      "sender": "finance.dept.office@yahoo.com",
-      "score": 0,
-      "level": "LOW",
-      "signals": [
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 244,
-      "label": "legit",
-      "category": "trusted_marketing",
-      "sender": "offers@booking.com",
-      "score": 26,
-      "level": "MEDIUM",
-      "signals": [
-        "BULK_SENDER",
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 245,
-      "label": "phishing",
-      "category": "bec_freemail_text_only",
-      "sender": "john.mcallister.ceo@gmail.com",
-      "score": 20,
-      "level": "LOW",
-      "signals": [
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 247,
-      "label": "phishing",
-      "category": "subdomain_abuse",
-      "sender": "alerts@chase.account-update-center.top",
-      "score": 20,
-      "level": "LOW",
-      "signals": [
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS"
-      ]
-    },
-    {
-      "id": 248,
-      "label": "legit",
-      "category": "trusted_tracking_links",
-      "sender": "team@mailchimp.com",
-      "score": 26,
-      "level": "MEDIUM",
-      "signals": [
-        "BULK_SENDER",
-        "LINK_MISMATCH",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 259,
-      "label": "phishing",
-      "category": "unknown_domain_text_only",
-      "sender": "notice@account-update-center.top",
-      "score": 0,
-      "level": "LOW",
-      "signals": []
-    },
-    {
-      "id": 260,
-      "label": "legit",
-      "category": "trusted_marketing",
-      "sender": "marketing@airbnb.com",
-      "score": 36,
-      "level": "MEDIUM",
-      "signals": [
-        "BULK_SENDER",
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 278,
-      "label": "legit",
-      "category": "trusted_tracking_links",
-      "sender": "team@mailchimp.com",
-      "score": 26,
-      "level": "MEDIUM",
-      "signals": [
-        "BULK_SENDER",
-        "LINK_MISMATCH",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 285,
-      "label": "phishing",
-      "category": "typo_insert",
-      "sender": "security@docusiign.com",
-      "score": 20,
-      "level": "LOW",
-      "signals": [
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS"
-      ]
-    },
-    {
-      "id": 287,
-      "label": "legit",
-      "category": "trusted_marketing",
-      "sender": "deals@target.com",
-      "score": 36,
-      "level": "MEDIUM",
-      "signals": [
-        "BULK_SENDER",
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 293,
-      "label": "legit",
-      "category": "trusted_tracking_links",
-      "sender": "digest@substack.com",
-      "score": 26,
-      "level": "MEDIUM",
-      "signals": [
-        "BULK_SENDER",
-        "LINK_MISMATCH",
-        "TRUSTED_VERIFIED"
-      ]
-    },
-    {
-      "id": 295,
-      "label": "legit",
-      "category": "trusted_marketing",
-      "sender": "offers@booking.com",
-      "score": 26,
-      "level": "MEDIUM",
-      "signals": [
-        "BULK_SENDER",
-        "SPAM_KEYWORDS",
-        "SUSPICIOUS_KEYWORDS",
-        "TRUSTED_VERIFIED"
-      ]
-    }
-  ],
+  "errors": [],
   "sweep": [
     {
       "threshold": 5,
-      "n": 305,
-      "tp": 172,
-      "fp": 32,
-      "tn": 81,
-      "fn": 20,
-      "accuracy": 0.8295081967213115,
-      "balanced_accuracy": 0.8063237463126844,
-      "precision": 0.8431372549019608,
-      "recall": 0.8958333333333334,
-      "specificity": 0.7168141592920354,
-      "f1": 0.8686868686868686,
-      "false_positive_rate": 0.2831858407079646
+      "n": 306,
+      "tp": 193,
+      "fp": 0,
+      "tn": 113,
+      "fn": 0,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "specificity": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
     },
     {
       "threshold": 10,
-      "n": 305,
-      "tp": 172,
-      "fp": 26,
-      "tn": 87,
-      "fn": 20,
-      "accuracy": 0.8491803278688524,
-      "balanced_accuracy": 0.832872418879056,
-      "precision": 0.8686868686868687,
-      "recall": 0.8958333333333334,
-      "specificity": 0.7699115044247787,
-      "f1": 0.8820512820512821,
-      "false_positive_rate": 0.23008849557522126
+      "n": 306,
+      "tp": 193,
+      "fp": 0,
+      "tn": 113,
+      "fn": 0,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "specificity": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
     },
     {
       "threshold": 15,
-      "n": 305,
-      "tp": 172,
-      "fp": 26,
-      "tn": 87,
-      "fn": 20,
-      "accuracy": 0.8491803278688524,
-      "balanced_accuracy": 0.832872418879056,
-      "precision": 0.8686868686868687,
-      "recall": 0.8958333333333334,
-      "specificity": 0.7699115044247787,
-      "f1": 0.8820512820512821,
-      "false_positive_rate": 0.23008849557522126
+      "n": 306,
+      "tp": 193,
+      "fp": 0,
+      "tn": 113,
+      "fn": 0,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "specificity": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
     },
     {
       "threshold": 20,
-      "n": 305,
-      "tp": 172,
-      "fp": 20,
-      "tn": 93,
-      "fn": 20,
-      "accuracy": 0.8688524590163934,
-      "balanced_accuracy": 0.8594210914454277,
-      "precision": 0.8958333333333334,
-      "recall": 0.8958333333333334,
-      "specificity": 0.8230088495575221,
-      "f1": 0.8958333333333334,
-      "false_positive_rate": 0.17699115044247793
+      "n": 306,
+      "tp": 193,
+      "fp": 0,
+      "tn": 113,
+      "fn": 0,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "specificity": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
     },
     {
       "threshold": 25,
-      "n": 305,
-      "tp": 160,
-      "fp": 18,
-      "tn": 95,
-      "fn": 32,
-      "accuracy": 0.8360655737704918,
-      "balanced_accuracy": 0.8370206489675516,
-      "precision": 0.898876404494382,
-      "recall": 0.8333333333333334,
-      "specificity": 0.8407079646017699,
-      "f1": 0.8648648648648649,
-      "false_positive_rate": 0.15929203539823011
+      "n": 306,
+      "tp": 193,
+      "fp": 0,
+      "tn": 113,
+      "fn": 0,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "specificity": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
     },
     {
       "threshold": 30,
-      "n": 305,
-      "tp": 160,
-      "fp": 6,
-      "tn": 107,
-      "fn": 32,
-      "accuracy": 0.8754098360655738,
-      "balanced_accuracy": 0.890117994100295,
-      "precision": 0.963855421686747,
-      "recall": 0.8333333333333334,
-      "specificity": 0.9469026548672567,
-      "f1": 0.8938547486033519,
-      "false_positive_rate": 0.053097345132743334
+      "n": 306,
+      "tp": 193,
+      "fp": 0,
+      "tn": 113,
+      "fn": 0,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "specificity": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
     },
     {
       "threshold": 35,
-      "n": 305,
-      "tp": 145,
-      "fp": 6,
-      "tn": 107,
-      "fn": 47,
-      "accuracy": 0.8262295081967214,
-      "balanced_accuracy": 0.851055494100295,
-      "precision": 0.9602649006622517,
-      "recall": 0.7552083333333334,
-      "specificity": 0.9469026548672567,
-      "f1": 0.8454810495626822,
-      "false_positive_rate": 0.053097345132743334
+      "n": 306,
+      "tp": 193,
+      "fp": 0,
+      "tn": 113,
+      "fn": 0,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "specificity": 1.0,
+      "f1": 1.0,
+      "false_positive_rate": 0.0
     },
     {
       "threshold": 40,
-      "n": 305,
-      "tp": 141,
+      "n": 306,
+      "tp": 193,
       "fp": 0,
       "tn": 113,
-      "fn": 51,
-      "accuracy": 0.8327868852459016,
-      "balanced_accuracy": 0.8671875,
+      "fn": 0,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
       "precision": 1.0,
-      "recall": 0.734375,
+      "recall": 1.0,
       "specificity": 1.0,
-      "f1": 0.8468468468468469,
+      "f1": 1.0,
       "false_positive_rate": 0.0
     },
     {
       "threshold": 45,
-      "n": 305,
-      "tp": 119,
+      "n": 306,
+      "tp": 193,
       "fp": 0,
       "tn": 113,
-      "fn": 73,
-      "accuracy": 0.760655737704918,
-      "balanced_accuracy": 0.8098958333333333,
+      "fn": 0,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
       "precision": 1.0,
-      "recall": 0.6197916666666666,
+      "recall": 1.0,
       "specificity": 1.0,
-      "f1": 0.7652733118971061,
+      "f1": 1.0,
       "false_positive_rate": 0.0
     },
     {
       "threshold": 50,
-      "n": 305,
-      "tp": 108,
+      "n": 306,
+      "tp": 187,
       "fp": 0,
       "tn": 113,
-      "fn": 84,
-      "accuracy": 0.7245901639344262,
-      "balanced_accuracy": 0.78125,
+      "fn": 6,
+      "accuracy": 0.9803921568627451,
+      "balanced_accuracy": 0.9844559585492227,
       "precision": 1.0,
-      "recall": 0.5625,
+      "recall": 0.9689119170984456,
       "specificity": 1.0,
-      "f1": 0.72,
+      "f1": 0.9842105263157895,
       "false_positive_rate": 0.0
     },
     {
       "threshold": 55,
-      "n": 305,
-      "tp": 95,
+      "n": 306,
+      "tp": 187,
       "fp": 0,
       "tn": 113,
-      "fn": 97,
-      "accuracy": 0.6819672131147541,
-      "balanced_accuracy": 0.7473958333333334,
+      "fn": 6,
+      "accuracy": 0.9803921568627451,
+      "balanced_accuracy": 0.9844559585492227,
       "precision": 1.0,
-      "recall": 0.4947916666666667,
+      "recall": 0.9689119170984456,
       "specificity": 1.0,
-      "f1": 0.662020905923345,
+      "f1": 0.9842105263157895,
       "false_positive_rate": 0.0
     },
     {
       "threshold": 60,
-      "n": 305,
-      "tp": 77,
+      "n": 306,
+      "tp": 168,
       "fp": 0,
       "tn": 113,
-      "fn": 115,
-      "accuracy": 0.6229508196721312,
-      "balanced_accuracy": 0.7005208333333334,
+      "fn": 25,
+      "accuracy": 0.9183006535947712,
+      "balanced_accuracy": 0.9352331606217616,
       "precision": 1.0,
-      "recall": 0.4010416666666667,
+      "recall": 0.8704663212435233,
       "specificity": 1.0,
-      "f1": 0.5724907063197026,
+      "f1": 0.9307479224376731,
       "false_positive_rate": 0.0
     },
     {
       "threshold": 65,
-      "n": 305,
-      "tp": 76,
+      "n": 306,
+      "tp": 160,
       "fp": 0,
       "tn": 113,
-      "fn": 116,
-      "accuracy": 0.6196721311475409,
-      "balanced_accuracy": 0.6979166666666666,
+      "fn": 33,
+      "accuracy": 0.8921568627450981,
+      "balanced_accuracy": 0.9145077720207253,
       "precision": 1.0,
-      "recall": 0.3958333333333333,
+      "recall": 0.8290155440414507,
       "specificity": 1.0,
-      "f1": 0.5671641791044776,
+      "f1": 0.9065155807365439,
       "false_positive_rate": 0.0
     },
     {
       "threshold": 70,
-      "n": 305,
-      "tp": 72,
+      "n": 306,
+      "tp": 160,
       "fp": 0,
       "tn": 113,
-      "fn": 120,
-      "accuracy": 0.6065573770491803,
-      "balanced_accuracy": 0.6875,
+      "fn": 33,
+      "accuracy": 0.8921568627450981,
+      "balanced_accuracy": 0.9145077720207253,
       "precision": 1.0,
-      "recall": 0.375,
+      "recall": 0.8290155440414507,
       "specificity": 1.0,
-      "f1": 0.5454545454545454,
+      "f1": 0.9065155807365439,
       "false_positive_rate": 0.0
     },
     {
       "threshold": 75,
-      "n": 305,
-      "tp": 71,
+      "n": 306,
+      "tp": 160,
       "fp": 0,
       "tn": 113,
-      "fn": 121,
-      "accuracy": 0.6032786885245902,
-      "balanced_accuracy": 0.6848958333333334,
+      "fn": 33,
+      "accuracy": 0.8921568627450981,
+      "balanced_accuracy": 0.9145077720207253,
       "precision": 1.0,
-      "recall": 0.3697916666666667,
+      "recall": 0.8290155440414507,
       "specificity": 1.0,
-      "f1": 0.5399239543726235,
+      "f1": 0.9065155807365439,
       "false_positive_rate": 0.0
     },
     {
       "threshold": 80,
-      "n": 305,
-      "tp": 66,
+      "n": 306,
+      "tp": 160,
       "fp": 0,
       "tn": 113,
-      "fn": 126,
-      "accuracy": 0.5868852459016394,
-      "balanced_accuracy": 0.671875,
+      "fn": 33,
+      "accuracy": 0.8921568627450981,
+      "balanced_accuracy": 0.9145077720207253,
       "precision": 1.0,
-      "recall": 0.34375,
+      "recall": 0.8290155440414507,
       "specificity": 1.0,
-      "f1": 0.5116279069767442,
+      "f1": 0.9065155807365439,
       "false_positive_rate": 0.0
     },
     {
       "threshold": 85,
-      "n": 305,
-      "tp": 65,
+      "n": 306,
+      "tp": 155,
       "fp": 0,
       "tn": 113,
-      "fn": 127,
-      "accuracy": 0.5836065573770491,
-      "balanced_accuracy": 0.6692708333333334,
+      "fn": 38,
+      "accuracy": 0.8758169934640523,
+      "balanced_accuracy": 0.9015544041450777,
       "precision": 1.0,
-      "recall": 0.3385416666666667,
+      "recall": 0.8031088082901554,
       "specificity": 1.0,
-      "f1": 0.5058365758754864,
+      "f1": 0.8908045977011494,
       "false_positive_rate": 0.0
     },
     {
       "threshold": 90,
-      "n": 305,
-      "tp": 55,
+      "n": 306,
+      "tp": 155,
       "fp": 0,
       "tn": 113,
-      "fn": 137,
-      "accuracy": 0.5508196721311476,
-      "balanced_accuracy": 0.6432291666666666,
+      "fn": 38,
+      "accuracy": 0.8758169934640523,
+      "balanced_accuracy": 0.9015544041450777,
       "precision": 1.0,
-      "recall": 0.2864583333333333,
+      "recall": 0.8031088082901554,
       "specificity": 1.0,
-      "f1": 0.44534412955465585,
+      "f1": 0.8908045977011494,
       "false_positive_rate": 0.0
     },
     {
       "threshold": 95,
-      "n": 305,
-      "tp": 50,
+      "n": 306,
+      "tp": 154,
       "fp": 0,
       "tn": 113,
-      "fn": 142,
-      "accuracy": 0.5344262295081967,
-      "balanced_accuracy": 0.6302083333333334,
+      "fn": 39,
+      "accuracy": 0.8725490196078431,
+      "balanced_accuracy": 0.8989637305699482,
       "precision": 1.0,
-      "recall": 0.2604166666666667,
+      "recall": 0.7979274611398963,
       "specificity": 1.0,
-      "f1": 0.4132231404958678,
+      "f1": 0.887608069164265,
       "false_positive_rate": 0.0
     },
     {
       "threshold": 100,
-      "n": 305,
-      "tp": 36,
+      "n": 306,
+      "tp": 154,
       "fp": 0,
       "tn": 113,
-      "fn": 156,
-      "accuracy": 0.4885245901639344,
-      "balanced_accuracy": 0.59375,
+      "fn": 39,
+      "accuracy": 0.8725490196078431,
+      "balanced_accuracy": 0.8989637305699482,
       "precision": 1.0,
-      "recall": 0.1875,
+      "recall": 0.7979274611398963,
       "specificity": 1.0,
-      "f1": 0.3157894736842105,
+      "f1": 0.887608069164265,
       "false_positive_rate": 0.0
     }
   ]

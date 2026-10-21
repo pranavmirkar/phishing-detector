@@ -22,6 +22,10 @@ DB = os.path.join(HERE, "..", "phishing.db")
 SEED = 42
 rng = random.Random(SEED)
 
+_conn = sqlite3.connect(DB)
+TRUSTED = {r[0] for r in _conn.execute("SELECT domain FROM trusted_domains")}
+_conn.close()
+
 # Brands attackers impersonate. Mix of domains inside / outside the detector's
 # top-1000 lookalike pool (chase, wellsfargo, hdfcbank rank well below 1000).
 BRANDS = [
@@ -117,11 +121,13 @@ for domain, brand in BRANDS:
     for cat, fake in typo_variants(domain).items():
         if cat in ("typo_delete", "typo_insert", "typo_swap") and rng.random() < 0.5:
             continue
+        if fake in TRUSTED:      # e.g. google.org, netflix.net are real brand-owned domains, not phishing
+            continue
         subj = rng.choice(PHISH_SUBJECTS).format(b=brand)
         body = rng.choice(PHISH_BODIES).format(b=brand, url=f"http://{fake}/verify?id={rng.randint(1000,9999)}")
         add("phishing", cat, f"security@{fake}", subj, body)
     fake = cyrillic(domain)
-    if fake:
+    if fake and fake not in TRUSTED:
         subj = rng.choice(PHISH_SUBJECTS).format(b=brand)
         body = rng.choice(PHISH_BODIES).format(b=brand, url=f"http://{fake}/signin")
         add("phishing", "homoglyph_unicode", f"no-reply@{fake}", subj, body)

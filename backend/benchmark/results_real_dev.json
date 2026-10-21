@@ -1,0 +1,60 @@
+{
+  "n": {
+    "phishing": 151,
+    "legit": 400,
+    "spam": 400
+  },
+  "crashes": 0,
+  "medium_or_above": {
+    "phishing_recall": 0.847682119205298,
+    "legit_false_positive_rate": 0.0,
+    "precision": 1.0,
+    "f1": 0.9175627240143369,
+    "balanced_accuracy": 0.923841059602649,
+    "spam_flag_rate": 0.45
+  },
+  "high_only": {
+    "phishing_recall": 0.5033112582781457,
+    "legit_false_positive_rate": 0.0,
+    "precision": 1.0,
+    "f1": 0.669603524229075,
+    "balanced_accuracy": 0.7516556291390728,
+    "spam_flag_rate": 0.115
+  },
+  "top_signals_on_missed_phishing": [
+    [
+      "HIGH_URL_DENSITY",
+      13
+    ],
+    [
+      "TRUSTED_VERIFIED",
+      12
+    ],
+    [
+      "EXCESSIVE_CAPS",
+      4
+    ],
+    [
+      "SPAM_KEYWORDS",
+      4
+    ],
+    [
+      "SUSPICIOUS_KEYWORDS",
+      4
+    ],
+    [
+      "EXCESSIVE_EXCLAMATIONS",
+      3
+    ],
+    [
+      "SUSPICIOUS_LINK",
+      1
+    ],
+    [
+      "REPLY_TO_MISMATCH",
+      1
+    ]
+  ],
+  "top_signals_on_false_positives": [],
+  "false_positive_sender_domains": []
+}

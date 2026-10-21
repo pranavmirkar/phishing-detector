@@ -21,6 +21,17 @@ const ATTACK_LABELS = {
   SUBDOMAIN_ABUSE: 'Subdomain abuse',
   HOMOGLYPH_ATTACK: 'Homoglyph attack',
   REPLY_TO_MISMATCH: 'Reply-To mismatch',
+  VERY_NEW_DOMAIN: 'Very new domain',
+  NEW_DOMAIN: 'New domain',
+  BRAND_IMPERSONATION: 'Brand impersonation',
+  BRAND_IN_DOMAIN: 'Brand name in domain',
+  BRAND_MISMATCH: 'Brand / sender mismatch',
+  ACCOUNT_ACTION_LURE: 'Account-action lure',
+  ADMIN_IMPERSONATION: 'Admin impersonation',
+  BEC_SCAM_PATTERN: 'Payment / advance-fee scam',
+  SUSPICIOUS_LINK: 'Suspicious link',
+  PUNYCODE_DOMAIN: 'Punycode domain',
+  AUTH_FAILURE: 'Authentication failure',
 }
 
 export default function Dashboard({ onNavigate, theme }) {

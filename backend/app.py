@@ -193,6 +193,9 @@ def stats():
         "LINK_MISMATCH": 0, "SUBDOMAIN_ABUSE": 0,
         "HOMOGLYPH_ATTACK": 0, "REPLY_TO_MISMATCH": 0,
         "VERY_NEW_DOMAIN": 0, "NEW_DOMAIN": 0,
+        "BRAND_IMPERSONATION": 0, "BRAND_IN_DOMAIN": 0, "BRAND_MISMATCH": 0,
+        "ACCOUNT_ACTION_LURE": 0, "ADMIN_IMPERSONATION": 0, "BEC_SCAM_PATTERN": 0,
+        "SUSPICIOUS_LINK": 0, "PUNYCODE_DOMAIN": 0, "AUTH_FAILURE": 0,
     }
     for row in all_w:
         try:

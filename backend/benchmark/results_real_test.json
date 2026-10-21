@@ -1,0 +1,95 @@
+{
+  "n": {
+    "phishing": 151,
+    "legit": 400,
+    "spam": 400
+  },
+  "crashes": 0,
+  "medium_or_above": {
+    "phishing_recall": 0.7549668874172185,
+    "legit_false_positive_rate": 0.0125,
+    "precision": 0.957983193277311,
+    "f1": 0.8444444444444444,
+    "balanced_accuracy": 0.8712334437086092,
+    "spam_flag_rate": 0.4075
+  },
+  "high_only": {
+    "phishing_recall": 0.40397350993377484,
+    "legit_false_positive_rate": 0.0075,
+    "precision": 0.953125,
+    "f1": 0.5674418604651162,
+    "balanced_accuracy": 0.6982367549668874,
+    "spam_flag_rate": 0.11
+  },
+  "top_signals_on_missed_phishing": [
+    [
+      "TRUSTED_VERIFIED",
+      18
+    ],
+    [
+      "HIGH_URL_DENSITY",
+      13
+    ],
+    [
+      "SUSPICIOUS_KEYWORDS",
+      10
+    ],
+    [
+      "EXCESSIVE_CAPS",
+      8
+    ],
+    [
+      "SPAM_KEYWORDS",
+      6
+    ],
+    [
+      "REPLY_TO_MISMATCH",
+      4
+    ],
+    [
+      "FREEMAIL_SENDER",
+      1
+    ],
+    [
+      "EXCESSIVE_EXCLAMATIONS",
+      1
+    ]
+  ],
+  "top_signals_on_false_positives": [
+    [
+      "SPAM_KEYWORDS",
+      2
+    ],
+    [
+      "SUBDOMAIN_ABUSE",
+      2
+    ],
+    [
+      "SUSPICIOUS_KEYWORDS",
+      2
+    ],
+    [
+      "BRAND_MISMATCH",
+      2
+    ],
+    [
+      "HIGH_URL_DENSITY",
+      2
+    ],
+    [
+      "REPLY_TO_MISMATCH",
+      2
+    ],
+    [
+      "TRUSTED_VERIFIED",
+      1
+    ]
+  ],
+  "false_positive_sender_domains": [
+    "birch.net",
+    "doolin.com",
+    "mail.banirh.com",
+    "sbcglobal.net",
+    "tele-punt-22.mail.demon.net"
+  ]
+}
