@@ -1,0 +1,20 @@
+# Render Blueprint: the PhishGuard API (what the Gmail extension talks to).
+# Render dashboard -> New -> Blueprint -> pick this repo. Then copy PG_API_KEY (Environment tab) into the extension popup.
+services:
+  - type: web
+    name: phishguard-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free                      # sleeps after ~15 min idle; first request then takes ~30-60 s (use a paid plan to avoid)
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PG_API_KEY             # required by every /api/* call except /api/health; generated once, shown in the dashboard
+        generateValue: true
+      - key: PG_TRUST_PROXY         # rate limits use the real client IP behind Render's proxy
+        value: "1"
+      - key: PG_STORE_CONTENT       # never keep message bodies
+        value: "0"
+      - key: PG_RATE_LIMIT
+        value: "120"

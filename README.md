@@ -184,6 +184,19 @@ The compose file runs the backend under gunicorn as a non-root user with a persi
 downloaded benchmark data, and serves the built frontend through nginx, which proxies `/api`. Pass the variables above
 through the environment, for example `PG_OWN_DOMAINS=example.com docker compose up --build`.
 
+### Render (API only, for the browser extension)
+
+`render.yaml` is a Render Blueprint for the API: **New → Blueprint →** choose this repo. Render builds `backend/Dockerfile`,
+generates a `PG_API_KEY`, and serves `https://<name>.onrender.com`. Then in the extension popup set **Address** to
+`https://<name>.onrender.com/api`, paste the key (Render → service → Environment), and press **Save and test**.
+
+- The API is public, so the key is what protects it; keep `PG_API_KEY` set. Anyone with the key can send mail to your
+  server for analysis, and the extension sends the messages you hover over to it.
+- On Render's free plan the service sleeps when idle and the first request after that takes 30-60 s; the extension then
+  shows its offline fallback for that message. A paid plan avoids this.
+- The free plan's disk is not persistent: the trusted-domain list is downloaded again on each start (the first minute
+  after a start uses a smaller list) and scan history is lost. Scans are not saved by default anyway.
+
 CI builds both images, starts the stack and smoke-tests it on every push (see `.github/workflows/ci.yml`). The images
 have not been built on the author's machine (Docker was not running there), so treat the CI run as the verification.
 
