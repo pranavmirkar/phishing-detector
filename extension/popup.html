@@ -77,12 +77,29 @@
       <div id="quick-result" style="margin-top:10px;display:none"></div>
     </div>
 
+    <!-- Server -->
+    <div class="pop-section">
+      <p class="section-label">PhishGuard server</p>
+      <div class="srv-status" id="srv-status"><span class="srv-dot" id="srv-dot"></span><span id="srv-text">Checking…</span></div>
+      <label class="srv-label" for="srv-url">Address</label>
+      <input type="text" class="quick-input srv-input" id="srv-url" placeholder="http://localhost:5000/api" spellcheck="false" />
+      <label class="srv-label" for="srv-key">API key <span class="srv-opt">(only if the server requires one)</span></label>
+      <input type="password" class="quick-input srv-input" id="srv-key" placeholder="X-API-Key" autocomplete="off" />
+      <label class="srv-check"><input type="checkbox" id="srv-headers" checked /> Read message headers (authentication, envelope sender, attachments)</label>
+      <label class="srv-check"><input type="checkbox" id="srv-persist" /> Save scans to the dashboard history</label>
+      <div class="srv-actions">
+        <button class="quick-btn" id="srv-save">Save &amp; test</button>
+      </div>
+      <p class="srv-note" id="srv-note">Messages you hover over are sent to this server for analysis, and nowhere else. Use your own server; non-local addresses must be https.</p>
+    </div>
+
     <!-- Footer -->
     <div class="pop-footer">
       <a href="http://localhost:3000" target="_blank" class="footer-link">Open Dashboard ↗</a>
     </div>
 
   </div>
+  <script src="api.js"></script>
   <script src="domains.js"></script>
   <script src="levenshtein.js"></script>
   <script src="popup.js"></script>

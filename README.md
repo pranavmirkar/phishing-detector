@@ -63,6 +63,22 @@ auth, rate limiting, optional "do not store message bodies" mode, Docker packagi
 </tr>
 </table>
 
+## Gmail extension
+
+`extension/` is a Manifest V3 Chrome extension. Hover a sender in Gmail and it sends the sender, subject and body (and,
+for an opened message, Gmail's own "original message" so SPF/DKIM/DMARC, the envelope sender and attachments are
+available) to **your** PhishGuard server and shows the same verdict and findings as the dashboard. If the server is
+down it says so and runs a simplified local check instead.
+
+1. Start the backend (`python app.py`, default `http://localhost:5000`).
+2. `chrome://extensions` → Developer mode → **Load unpacked** → select `extension/`.
+3. Open the extension popup, check the server address (and API key if you set `PG_API_KEY`), and press **Save & test**.
+
+Message content goes only to the server address you configure. Non-local servers must use https and need an explicit
+browser permission for that one origin; scans are not saved to the dashboard history unless you tick the option.
+Tests: `cd extension && node --test test/api.test.js test/background.integration.test.js` (the second starts the real
+backend); `node test/e2e/gmail_mock.e2e.js` drives real Chrome against a mock Gmail page (needs Chrome and openssl).
+
 ## How it works
 
 ```mermaid
@@ -313,7 +329,7 @@ the model was trained on them.
 - **Evasion.** Attackers who learn the features can adapt; the learned layer is not hardened.
 - **Authentication false alarms are unmeasured** (the legitimate corpora carry no SPF results).
 - WHOIS domain-age scoring is off in all benchmarks, so it is unmeasured.
-- The **Gmail extension** has its own older, simpler JavaScript implementation. None of the figures here apply to it.
+- The **Gmail extension** is only as good as what Gmail's page exposes: the message-header fetch and the DOM selectors are tested against a mock page, not live Gmail, and Gmail changes its markup without notice. When the server is unreachable it falls back to an older, simpler local check that the benchmark figures do **not** describe (it reports 'no alert' for a forged paypal.com message, which is why the panel says so).
 - Measured on emails in English (and a few other languages in the phishing set); a small multilingual lexicon covers
   non-English lures but false alarms on non-English legitimate mail are unmeasured.
 
@@ -340,14 +356,14 @@ backend/
   benchmark/              engine, metrics, corpora catalogue, train_model.py, CLI runners, datasets, reports
   tests/                  detector, parser, API and benchmark tests
 frontend/src/             pages (Dashboard, Analyze, History, Benchmarks, Patterns), components, theme
-extension/                Manifest V3 Gmail extension (separate implementation)
+extension/                Manifest V3 Gmail extension (calls the API; tests in extension/test)
 docs/                     screenshots, sample .eml
 docker-compose.yml        backend (gunicorn) + web (nginx)
 ```
 
 ## Roadmap
 
-- Gmail extension that calls the API (so it gets the new rules and header data)
+- Verify the extension against live Gmail across account types, and publish it to the Chrome Web Store
 - Retrain on a larger, more diverse labelled set including marketing mail and receipts; calibrated probabilities
 - A modern consumer-mail legitimate set (newsletters, receipts), and image/QR-code lure detection
 - A feedback loop: user-confirmed phishing / false alarms stored and fed back into evaluation

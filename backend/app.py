@@ -201,6 +201,10 @@ def analyze():
         log.exception("Detector error for sender=%s", sender)
         return jsonify({"error": "Analysis failed", "detail": str(exc)}), 500
 
+    if data.get("persist") is False:           # e.g. the browser extension: score it, do not add it to the history
+        result["id"] = None
+        return jsonify(result)
+
     conn = db()
     cur = conn.execute(
         "INSERT INTO emails (sender,subject,content,domain,risk_score,risk_level,warnings,analysis,timestamp)"

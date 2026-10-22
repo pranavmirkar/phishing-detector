@@ -159,3 +159,15 @@ body {
 .pop-footer { padding: 10px 16px; }
 .footer-link { font-size: 11px; color: #4b5563; text-decoration: none; transition: color .15s; }
 .footer-link:hover { color: #6366f1; }
+
+/* ── server settings ───────────────────────────────────────── */
+.srv-status { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 10px; }
+.srv-dot { width: 8px; height: 8px; border-radius: 50%; background: #9ca3af; flex-shrink: 0; }
+.srv-dot.ok { background: #22c55e; } .srv-dot.bad { background: #ef4444; }
+.srv-label { display: block; font-size: 11px; color: #6b7280; margin: 8px 0 4px; }
+.srv-opt { color: #9ca3af; }
+.srv-input { width: 100%; box-sizing: border-box; }
+.srv-check { display: flex; align-items: flex-start; gap: 6px; font-size: 11.5px; margin-top: 8px; color: #374151; cursor: pointer; line-height: 1.35; }
+.srv-check input { margin-top: 2px; }
+.srv-actions { margin-top: 10px; }
+.srv-note { margin-top: 8px; font-size: 10.5px; color: #9ca3af; line-height: 1.4; }

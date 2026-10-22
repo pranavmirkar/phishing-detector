@@ -84,3 +84,12 @@ def test_security_headers_and_json_errors(client):
 
 def test_database_path_is_absolute_and_overridable():
     assert os.path.isabs(A.DB)
+
+
+def test_persist_false_scores_without_saving(client):
+    before = len(client.get("/api/emails").get_json())
+    r = client.post("/api/analyze", json={"sender": "a@b.com", "subject": "hi", "persist": False}).get_json()
+    assert r["id"] is None and r["risk_score"] in ("LOW", "MEDIUM", "HIGH")
+    assert len(client.get("/api/emails").get_json()) == before
+    saved = client.post("/api/analyze", json={"sender": "a@b.com", "subject": "hi"}).get_json()
+    assert isinstance(saved["id"], int)
