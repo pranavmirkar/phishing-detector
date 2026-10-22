@@ -10,20 +10,10 @@ const EMAIL_RE = /[\w.+\-]+@[\w.\-]+\.[a-z]{2,}/i
 
 chrome.storage?.local?.get(['enabled'], data => {
   if (data?.enabled === false) _pgEnabled = false
-  if (_pgEnabled) showStartupBadge()
 })
 chrome.storage?.onChanged?.addListener((changes, area) => {
   if (area === 'local' && 'enabled' in changes) _pgEnabled = changes.enabled.newValue
 })
-
-// ── Startup indicator (proves script loaded) ──────────────────────────────────
-function showStartupBadge() {
-  const b = document.createElement('div')
-  b.style.cssText = 'position:fixed;bottom:16px;left:16px;z-index:2147483647;background:#18181b;color:#fff;padding:6px 12px;border-radius:6px;font-size:12px;font-family:sans-serif;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.3)'
-  b.textContent = '🛡️ PhishGuard active'
-  document.body.appendChild(b)
-  setTimeout(() => b.remove(), 3000)
-}
 
 document.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY }, { passive: true })
 
@@ -33,9 +23,6 @@ function esc(s) {
 function extractDomain(email) {
   const m = String(email).match(/@([\w.\-]+\.\w+)/)
   return m ? m[1].toLowerCase() : null
-}
-function riskColor(s) {
-  return s === 'HIGH' ? '#ef4444' : s === 'MEDIUM' ? '#f59e0b' : '#22c55e'
 }
 
 // ── Panel ─────────────────────────────────────────────────────────────────────
@@ -100,101 +87,105 @@ async function analyzeViaServer(ctx, email) {
   return sendMessage({ type: 'PG_ANALYZE', payload, raw })
 }
 
-function mountPanel(html) {
+function mountPanel(level, html) {
   const panel = document.createElement('div')
   panel.id = 'phishguard-panel'
-  panel.className = 'pg-panel'
+  panel.className = `pg-panel pg-lvl-${level}`
+  panel.setAttribute('role', 'dialog')
+  panel.setAttribute('aria-label', 'PhishGuard analysis')
   panel.innerHTML = html
   document.body.appendChild(panel)
   activePanel = panel
-  let top = mouseY - 20, left = mouseX + 20
-  if (left + 310 > window.innerWidth) left = mouseX - 320
-  if (top < 8) top = 8
+  const w = Math.min(320, window.innerWidth - 16)
+  let left = mouseX + 20, top = mouseY - 20
+  if (left + w > window.innerWidth - 8) left = Math.max(8, mouseX - w - 20)
+  top = Math.max(8, Math.min(top, window.innerHeight - 260))
   panel.style.top = `${top}px`
   panel.style.left = `${left}px`
+  bindPanel(panel)
   requestAnimationFrame(() => panel.classList.add('pg-visible'))
   return panel
 }
 
-const SHIELD = color => `
-  <svg class="pg-shield" viewBox="0 0 24 24" fill="none">
-    <path d="M12 2L4 6v6c0 5.25 3.75 10.15 8 11.35C16.25 22.15 20 17.25 20 12V6L12 2z"
-      fill="${color}" fill-opacity=".15" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>
-    <path d="M9 12l2 2 4-4" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>`
-const head = color => `
-  <div class="pg-header">${SHIELD(color)}<span class="pg-title">PhishGuard</span>
-    <button class="pg-close" id="pg-close-btn" aria-label="Close">×</button></div>`
-
-function loadingHtml(domain) {
-  return `${head('#6366f1')}
-    <div class="pg-domain-row"><span class="pg-label">Domain</span><code class="pg-code">${esc(domain)}</code></div>
-    <div class="pg-skeleton"><span></span><span></span><span></span></div>
-    <div class="pg-mode">Analysing…</div>`
+function setPanel(panel, level, html) {
+  panel.className = `pg-panel pg-lvl-${level} pg-visible`
+  panel.innerHTML = html
+  bindPanel(panel)
 }
 
-function renderServer(result, usedHeaders, ctx) {
+function bindPanel(panel) {
+  panel.querySelector('.pg-close')?.addEventListener('click', removePanel)
+  panel.querySelector('.pg-more')?.addEventListener('click', e => {
+    panel.querySelectorAll('.pg-findings li[hidden]').forEach(li => { li.hidden = false })
+    e.currentTarget.remove()
+  })
+}
+
+const ICONS = {
+  low: '<path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
+  alert: '<path d="M12 8v5m0 3.5v.01M10.3 4.2L2.8 17.3A2 2 0 004.5 20.3h15a2 2 0 001.7-3L13.7 4.2a2 2 0 00-3.4 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
+  info: '<path d="M12 11v5.5m0-9v.01M12 21a9 9 0 100-18 9 9 0 000 18z" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>',
+}
+const SEV = { HIGH: 'High', MEDIUM: 'Medium', LOW: 'Note' }
+
+function verdictBlock(level, headline, advice) {
+  const icon = level === 'low' ? ICONS.low : level === 'off' || level === 'wait' ? ICONS.info : ICONS.alert
+  return `<div class="pg-verdict">
+    <span class="pg-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg></span>
+    <div class="pg-verdict-text"><div class="pg-headline">${esc(headline)}</div>${advice ? `<div class="pg-advice">${esc(advice)}</div>` : ''}</div>
+    <button class="pg-close" aria-label="Close">×</button></div>`
+}
+
+function senderBlock(name, email, tag) {
+  const shown = name && name.toLowerCase() !== email ? name : email
+  return `<div class="pg-sender"><span class="pg-from">${esc(shown)}</span>${shown !== email ? `<span class="pg-addr">${esc(email)}</span>` : ''}${tag ? `<span class="pg-tag">${esc(tag)}</span>` : ''}</div>`
+}
+
+const SHOWN = 3
+function findingsBlock(findings, emptyText) {
+  if (!findings.length) return emptyText ? `<div class="pg-none">${esc(emptyText)}</div>` : ''
+  const items = findings.map((w, i) => `<li${i >= SHOWN ? ' hidden' : ''}><span class="pg-sev pg-sev-${esc(String(w.severity).toLowerCase())}">${SEV[w.severity] || 'Note'}</span><span class="pg-msg">${esc(w.message)}</span></li>`).join('')
+  return `<div class="pg-section-title">Why</div><ul class="pg-findings">${items}</ul>
+    ${findings.length > SHOWN ? `<button class="pg-more">Show ${findings.length - SHOWN} more</button>` : ''}`
+}
+
+function loadingHtml(name, email) {
+  return `${verdictBlock('wait', 'Checking this sender…', '')}${senderBlock(name, email)}
+    <div class="pg-skeleton"><span></span><span></span><span></span></div>`
+}
+
+function renderServer(result, usedHeaders, ctx, email) {
   const v = PG.verdict(result)
+  const level = v.level.toLowerCase()
   const da = result.domain_analysis || {}
-  const findings = PG.topFindings(result, 6)
-  const mode = usedHeaders ? 'message headers + body'
-    : ctx.opened ? 'message body (open the message once more for headers)' : 'sender and subject only (open the message for a full check)'
-  const trust = da.is_trusted
-    ? `<div class="pg-match-row pg-safe">✓ Verified domain${findings.length ? ' — but the message has warning signs' : ''}</div>`
-    : da.is_freemail ? `<div class="pg-match-row">Free mailbox provider: the sender's identity is not verified</div>` : ''
-  return `${head(v.color)}
-    <div class="pg-domain-row"><span class="pg-label">Domain</span><code class="pg-code">${esc(result.domain)}</code></div>
-    <div class="pg-risk" style="background:${v.color}15;border-color:${v.color}25">
-      <span class="pg-dot" style="background:${v.color}"></span>
-      <span class="pg-risk-label" style="color:${v.color}">${v.label}</span>
-      <span class="pg-score" style="color:${v.color}">${result.risk_level}/100</span>
-    </div>
-    ${trust}
-    ${findings.map(w => `
-      <div class="pg-warning pg-warning-${esc(String(w.severity).toLowerCase())}">
-        <span class="pg-warn-dot"></span><span>${esc(w.message)}</span>
-      </div>`).join('') || (v.level === 'LOW' ? '<div class="pg-match-row pg-safe">No warning signs found</div>' : '')}
-    <div class="pg-mode">Analysed by your PhishGuard server · ${esc(mode)}</div>`
+  const findings = PG.topFindings(result, 8)
+  const how = usedHeaders ? 'Checked sender, headers and message'
+    : ctx.opened ? 'Checked sender and message (no headers)' : 'Checked sender and subject only'
+  const hint = !usedHeaders && !ctx.opened ? '<div class="pg-hint">Open the message for a fuller check.</div>' : ''
+  const tag = da.is_trusted ? 'Known domain' : da.is_freemail ? 'Free mailbox provider' : ''
+  const none = level === 'low' ? 'Nothing suspicious found in the sender, links or wording.' : ''
+  return `${verdictBlock(level, v.headline, v.advice)}${senderBlock(ctx.name, email, tag)}${findingsBlock(findings, none)}${hint}
+    <div class="pg-foot"><span>${how}</span><span>Risk ${result.risk_level}/100</span></div>`
 }
 
-function renderLocal(email, domain, anchorEl, reason) {
+function renderLocal(email, domain, anchorEl, reason, ctx) {
   let result
-  try { result = analyzeDomain(domain) } catch (e) { return `${head('#6366f1')}<div class="pg-mode">Could not analyse ${esc(domain)}</div>` }
-  let spam = { spamScore: 0, spamLevel: 'LOW', signals: [] }
-  try {
-    const row = anchorEl.closest?.('tr') || anchorEl.closest?.('[role="row"]')
-    const subject = document.querySelector('h2.hP')?.textContent || row?.querySelector('.bog, .y6 span')?.textContent || ''
-    const preview = document.querySelector('.a3s.aiL')?.innerText?.slice(0, 500) || row?.querySelector('.y2')?.textContent || ''
-    spam = analyzeSpam(subject, preview)
-  } catch (e) { /* subject/body not available */ }
-  const combined = Math.min(result.riskLevel + Math.round(spam.spamScore * 0.4), 100)
-  const topRisk = combined >= 55 ? 'HIGH' : combined >= 25 ? 'MEDIUM' : 'LOW'
-  const color = riskColor(topRisk)
-  const warn = [...(result.warnings || []), ...(spam.signals || [])]
-  chrome.storage?.local?.set({ lastResult: { email, domain, ...result, spam, combinedScore: combined, source: 'local', timestamp: Date.now() } })
-  return `${head(color)}
-    <div class="pg-offline">${esc(reason || 'Server not reachable')}: showing the simplified offline check. Start the PhishGuard server or set its address in the extension popup.</div>
-    <div class="pg-domain-row"><span class="pg-label">Domain</span><code class="pg-code">${esc(domain)}</code></div>
-    <div class="pg-risk" style="background:${color}15;border-color:${color}25">
-      <span class="pg-dot" style="background:${color}"></span>
-      <span class="pg-risk-label" style="color:${color}">${topRisk === 'LOW' ? 'NO ALERT' : topRisk + ' RISK'}</span>
-      <span class="pg-score" style="color:${color}">${combined}/100</span>
-    </div>
-    ${result.safe ? '<div class="pg-match-row pg-safe">Trusted domain name. Sender identity and message content were not checked.</div>'
-      : `<div class="pg-match-row"><span class="pg-label">Closest trusted</span>
-         <span class="pg-match-val">${esc(result.bestMatch?.trusted ?? '—')} (d=${esc(result.bestMatch?.distance ?? '—')})</span></div>`}
-    ${warn.slice(0, 5).map(w => `
-      <div class="pg-warning pg-warning-${esc(String(w.severity).toLowerCase())}">
-        <span class="pg-warn-dot"></span><span>${esc(w.message)}</span>
-      </div>`).join('')}`
+  try { result = analyzeDomain(domain) } catch (e) { result = null }
+  let spam = { spamScore: 0, signals: [] }
+  try { spam = analyzeSpam(ctx.subject, (ctx.text || '').slice(0, 500)) } catch (e) { /* no text available */ }
+  const warn = result ? [...(result.warnings || []), ...(spam.signals || []).map(x => ({ ...x, severity: 'LOW' }))] : []
+  if (result) chrome.storage?.local?.set({ lastResult: { email, domain, ...result, spam, source: 'local', timestamp: Date.now() } })
+  return `${verdictBlock('off', 'Server not reachable', 'Showing a limited offline check. It cannot tell whether a message is forged.')}
+    ${senderBlock(ctx.name, email)}
+    ${findingsBlock(warn.slice(0, 6).map(w => ({ severity: w.severity, message: w.message })), 'The offline check found nothing, which is not the same as safe.')}
+    <div class="pg-hint">${esc(reason)}. Start the PhishGuard server, or set its address in the extension popup.</div>`
 }
 
 async function showPanel(anchorEl, email, domain) {
   removePanel()
   const token = ++panelToken
   const ctx = messageContext(anchorEl, email)
-  const panel = mountPanel(loadingHtml(domain))
-  panel.querySelector('#pg-close-btn')?.addEventListener('click', removePanel)
+  const panel = mountPanel('wait', loadingHtml(ctx.name, email))
 
   const key = ctx.legacyId ? `${ctx.legacyId}|${email}` : `${email}|${ctx.subject}`
   const hit = resultCache.get(key)
@@ -206,13 +197,15 @@ async function showPanel(anchorEl, email, domain) {
   if (token !== panelToken || activePanel !== panel) return          // the user moved on
 
   if (outcome.ok) {
-    panel.innerHTML = renderServer(outcome.result, outcome.usedHeaders, ctx)
+    setPanel(panel, PG.verdict(outcome.result).level.toLowerCase(), renderServer(outcome.result, outcome.usedHeaders, ctx, email))
     chrome.storage?.local?.set({ lastResult: PG.summarize(outcome.result, email) })
   } else {
-    panel.innerHTML = renderLocal(email, domain, anchorEl, outcome.status === 401 ? 'API key rejected' : outcome.offline ? 'Server not reachable' : outcome.error)
+    const why = outcome.status === 401 ? 'The API key was rejected' : outcome.offline ? 'Could not reach the server' : outcome.error
+    setPanel(panel, 'off', renderLocal(email, domain, anchorEl, why, ctx))
   }
-  panel.querySelector('#pg-close-btn')?.addEventListener('click', removePanel)
 }
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && activePanel) removePanel() }, true)
 
 function removePanel() {
   panelToken++

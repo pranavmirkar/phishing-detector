@@ -2,103 +2,113 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PhishGuard</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
-  <div class="popup">
-
-    <!-- Auth banner (shown when signed out) -->
-    <div class="auth-banner" id="auth-banner">
-      <svg class="auth-google-icon" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
-        <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
-        <path d="M3.964 10.706A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.038l3.007-2.332z" fill="#FBBC05"/>
-        <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.962L3.964 7.294C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
-      </svg>
-      <span class="auth-banner-text">Sign in to sync your scan history</span>
-      <button class="auth-signin-btn" id="auth-signin-btn">Sign in</button>
+  <header class="top">
+    <svg class="mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 2.5L4.5 5.8v5.7c0 4.7 3.2 8.6 7.5 10 4.3-1.4 7.5-5.3 7.5-10V5.8L12 2.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+      <path d="M8.8 12.2l2.2 2.2 4.2-4.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div class="brand">
+      <h1>PhishGuard</h1>
+      <span class="status" id="status"><span class="dot" id="status-dot"></span><span id="status-text">Checking…</span></span>
     </div>
+    <label class="switch" title="Turn warnings on or off">
+      <input type="checkbox" id="toggle-enabled" checked aria-label="Show warnings in Gmail" />
+      <span class="switch-track"></span>
+    </label>
+  </header>
 
-    <!-- Auth user row (shown when signed in) -->
-    <div class="auth-user-row" id="auth-user-row" style="display:none">
-      <img class="auth-avatar" id="auth-avatar" src="" alt="" />
-      <div class="auth-user-info">
-        <p class="auth-user-name" id="auth-user-name">—</p>
-        <p class="auth-user-email" id="auth-user-email">—</p>
-      </div>
-      <button class="auth-signout-btn" id="auth-signout-btn">Sign out</button>
-    </div>
+  <nav class="tabs" role="tablist">
+    <button class="tab active" role="tab" id="tab-overview" aria-selected="true" aria-controls="view-overview">Overview</button>
+    <button class="tab" role="tab" id="tab-settings" aria-selected="false" aria-controls="view-settings">Settings</button>
+  </nav>
 
-    <!-- Header -->
-    <div class="pop-header">
-      <svg class="pop-icon" viewBox="0 0 24 24" fill="none">
-        <path d="M12 2L4 6v6c0 5.25 3.75 10.15 8 11.35C16.25 22.15 20 17.25 20 12V6L12 2z"
-          fill="#6366f1" fill-opacity=".15" stroke="#6366f1" stroke-width="1.5" stroke-linejoin="round"/>
-        <path d="M9 12l2 2 4-4" stroke="#6366f1" stroke-width="1.8"
-          stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <div>
-        <p class="pop-title">PhishGuard</p>
-        <p class="pop-sub">Gmail Threat Monitor</p>
+  <main>
+    <!-- Overview -->
+    <section id="view-overview" role="tabpanel" aria-labelledby="tab-overview">
+      <div class="callout" id="setup-callout" hidden>
+        <p class="callout-title">Connect your PhishGuard server</p>
+        <p>Full analysis runs on your own server. Start it with <code>python app.py</code>, then check the address in Settings.</p>
+        <button class="btn" id="goto-settings">Open settings</button>
       </div>
-      <div class="toggle-wrap">
-        <label class="toggle">
-          <input type="checkbox" id="toggle-enabled" checked />
-          <span class="toggle-track"></span>
-        </label>
-      </div>
-    </div>
 
-    <!-- Last scan -->
-    <div class="pop-section" id="last-scan-section">
-      <p class="section-label">Last Scanned</p>
-      <div id="last-scan-empty" class="empty-msg">
-        Open Gmail and hover over a sender to see results here.
-      </div>
-      <div id="last-scan-result" style="display:none">
-        <div class="scan-domain-row">
-          <code class="scan-domain" id="scan-domain">—</code>
-          <span class="scan-badge" id="scan-badge">—</span>
+      <div class="card">
+        <h2>Last scan</h2>
+        <div id="last-empty" class="empty">Nothing yet. Open Gmail and hover over a sender.</div>
+        <div id="last-result" hidden>
+          <div class="verdict" id="last-verdict">
+            <span class="verdict-dot"></span>
+            <span class="verdict-text" id="last-headline">-</span>
+            <span class="verdict-meta" id="last-meta"></span>
+          </div>
+          <p class="sender" id="last-sender">-</p>
+          <ul class="findings" id="last-findings"></ul>
         </div>
-        <div id="scan-warnings" class="scan-warnings"></div>
-        <div class="scan-meta" id="scan-meta"></div>
       </div>
-    </div>
 
-    <!-- Quick check -->
-    <div class="pop-section">
-      <p class="section-label">Quick Check</p>
-      <div class="quick-check">
-        <input type="text" class="quick-input" id="quick-input" placeholder="any@domain.com" />
-        <button class="quick-btn" id="quick-btn">Check</button>
+      <div class="card">
+        <h2><label for="quick-input">Check a sender</label></h2>
+        <form class="row" id="quick-form">
+          <input type="text" id="quick-input" placeholder="sender@example.com" spellcheck="false" autocomplete="off" />
+          <button class="btn primary" id="quick-btn" type="submit">Check</button>
+        </form>
+        <div id="quick-result" hidden></div>
+        <p class="help">Checks the domain only. Hover a message in Gmail for the full analysis.</p>
       </div>
-      <div id="quick-result" style="margin-top:10px;display:none"></div>
-    </div>
+    </section>
 
-    <!-- Server -->
-    <div class="pop-section">
-      <p class="section-label">PhishGuard server</p>
-      <div class="srv-status" id="srv-status"><span class="srv-dot" id="srv-dot"></span><span id="srv-text">Checking…</span></div>
-      <label class="srv-label" for="srv-url">Address</label>
-      <input type="text" class="quick-input srv-input" id="srv-url" placeholder="http://localhost:5000/api" spellcheck="false" />
-      <label class="srv-label" for="srv-key">API key <span class="srv-opt">(only if the server requires one)</span></label>
-      <input type="password" class="quick-input srv-input" id="srv-key" placeholder="X-API-Key" autocomplete="off" />
-      <label class="srv-check"><input type="checkbox" id="srv-headers" checked /> Read message headers (authentication, envelope sender, attachments)</label>
-      <label class="srv-check"><input type="checkbox" id="srv-persist" /> Save scans to the dashboard history</label>
-      <div class="srv-actions">
-        <button class="quick-btn" id="srv-save">Save &amp; test</button>
+    <!-- Settings -->
+    <section id="view-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
+      <div class="card">
+        <h2>Server</h2>
+        <label class="field" for="srv-url">Address</label>
+        <input type="text" id="srv-url" placeholder="http://localhost:5000/api" spellcheck="false" />
+        <label class="field" for="srv-key">API key <span class="opt">optional</span></label>
+        <input type="password" id="srv-key" placeholder="Only if your server requires one" autocomplete="off" />
+
+        <label class="option">
+          <input type="checkbox" id="srv-headers" checked />
+          <span><b>Read message headers</b><small>Uses SPF/DKIM/DMARC results, the real sender and attachments for a more accurate verdict.</small></span>
+        </label>
+        <label class="option">
+          <input type="checkbox" id="srv-persist" />
+          <span><b>Save scans to dashboard history</b><small>Off by default, so the server keeps no record of what you read.</small></span>
+        </label>
+
+        <div class="row end">
+          <span class="msg" id="srv-msg" role="status"></span>
+          <button class="btn primary" id="srv-save">Save and test</button>
+        </div>
+        <p class="help">Messages you hover over are sent only to this server. Addresses other than localhost must use https.</p>
       </div>
-      <p class="srv-note" id="srv-note">Messages you hover over are sent to this server for analysis, and nowhere else. Use your own server; non-local addresses must be https.</p>
-    </div>
 
-    <!-- Footer -->
-    <div class="pop-footer">
-      <a href="http://localhost:3000" target="_blank" class="footer-link">Open Dashboard ↗</a>
-    </div>
+      <div class="card">
+        <h2>Account</h2>
+        <div id="auth-out" class="row">
+          <p class="help flex">Sign in to sync scan history across devices.</p>
+          <button class="btn" id="auth-signin-btn">Sign in with Google</button>
+        </div>
+        <div id="auth-in" class="row" hidden>
+          <img class="avatar" id="auth-avatar" alt="" />
+          <div class="who">
+            <b id="auth-user-name">-</b>
+            <small id="auth-user-email">-</small>
+          </div>
+          <button class="btn" id="auth-signout-btn">Sign out</button>
+        </div>
+      </div>
+    </section>
+  </main>
 
-  </div>
+  <footer>
+    <a href="http://localhost:3000" target="_blank" rel="noopener">Open dashboard</a>
+    <span>v<span id="ver"></span></span>
+  </footer>
+
   <script src="api.js"></script>
   <script src="domains.js"></script>
   <script src="levenshtein.js"></script>

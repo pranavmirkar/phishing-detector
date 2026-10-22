@@ -70,6 +70,14 @@ for an opened message, Gmail's own "original message" so SPF/DKIM/DMARC, the env
 available) to **your** PhishGuard server and shows the same verdict and findings as the dashboard. If the server is
 down it says so and runs a simplified local check instead.
 
+<table>
+<tr>
+<td><img src="docs/screenshots/extension-panel.png" alt="PhishGuard panel on a flagged message in Gmail"><br><sub><b>Panel</b>: verdict first, then why</sub></td>
+<td width="240"><img src="docs/screenshots/extension-popup.png" alt="Extension popup, overview"><br><sub><b>Popup</b>: overview (light)</sub></td>
+<td width="240"><img src="docs/screenshots/extension-settings-dark.png" alt="Extension popup, settings in dark theme"><br><sub><b>Settings</b> (dark)</sub></td>
+</tr>
+</table>
+
 1. Start the backend (`python app.py`, default `http://localhost:5000`).
 2. `chrome://extensions` → Developer mode → **Load unpacked** → select `extension/`.
 3. Open the extension popup, check the server address (and API key if you set `PG_API_KEY`), and press **Save & test**.

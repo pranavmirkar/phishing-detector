@@ -86,11 +86,12 @@
       .slice(0, n)
   }
 
+  /** Plain-language verdict. `label` is the short badge text; `headline` / `advice` are for the panel. */
   function verdict(result) {
     const level = result && result.risk_score
-    if (level === 'HIGH') return { level, label: 'HIGH RISK', color: '#ef4444' }
-    if (level === 'MEDIUM') return { level, label: 'LOOK TWICE', color: '#f59e0b' }
-    return { level: 'LOW', label: 'NO ALERT', color: '#22c55e' }
+    if (level === 'HIGH') return { level, label: 'HIGH RISK', headline: 'Likely phishing', advice: "Don't click links, open attachments or reply." }
+    if (level === 'MEDIUM') return { level, label: 'LOOK TWICE', headline: 'Suspicious', advice: 'Check the sender before you click or reply.' }
+    return { level: 'LOW', label: 'NO ALERT', headline: 'No warning signs', advice: '' }
   }
 
   /** What the popup keeps as "last scan". */

@@ -1,231 +1,184 @@
 // Popup UI logic
 
-// ── Google Auth UI ─────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id)
+const send = msg => new Promise(resolve => chrome.runtime.sendMessage(msg, r => resolve(chrome.runtime.lastError ? null : r)))
 
-function renderAuthState(user) {
-  const banner    = document.getElementById('auth-banner')
-  const userRow   = document.getElementById('auth-user-row')
-  const avatar    = document.getElementById('auth-avatar')
-  const nameEl    = document.getElementById('auth-user-name')
-  const emailEl   = document.getElementById('auth-user-email')
+$('ver').textContent = chrome.runtime.getManifest().version
 
-  if (user) {
-    banner.style.display   = 'none'
-    userRow.style.display  = 'flex'
-    avatar.src             = user.picture || ''
-    nameEl.textContent     = user.name    || '—'
-    emailEl.textContent    = user.email   || '—'
-  } else {
-    banner.style.display   = 'flex'
-    userRow.style.display  = 'none'
+// ── Tabs ───────────────────────────────────────────────────────
+
+function showTab(name) {
+  for (const t of ['overview', 'settings']) {
+    $(`view-${t}`).hidden = t !== name
+    $(`tab-${t}`).setAttribute('aria-selected', String(t === name))
+    $(`tab-${t}`).classList.toggle('active', t === name)
   }
 }
+$('tab-overview').addEventListener('click', () => showTab('overview'))
+$('tab-settings').addEventListener('click', () => showTab('settings'))
+$('goto-settings').addEventListener('click', () => showTab('settings'))
 
-chrome.storage?.local?.get(['authUser'], data => renderAuthState(data?.authUser ?? null))
+// ── Protection switch ──────────────────────────────────────────
 
-document.getElementById('auth-signin-btn')?.addEventListener('click', () => {
-  const btn = document.getElementById('auth-signin-btn')
-  btn.textContent = 'Signing in…'
-  btn.disabled = true
+$('toggle-enabled').addEventListener('change', e => chrome.storage.local.set({ enabled: e.target.checked }))
 
-  chrome.runtime.sendMessage({ type: 'AUTH_SIGN_IN' }, res => {
-    btn.textContent = 'Sign in'
-    btn.disabled    = false
-    if (res?.success) renderAuthState(res.user)
-    else console.error('Auth error:', res?.error)
-  })
-})
+// ── Connection status ──────────────────────────────────────────
 
-document.getElementById('auth-signout-btn')?.addEventListener('click', () => {
-  chrome.runtime.sendMessage({ type: 'AUTH_SIGN_OUT' }, res => {
-    if (res?.success) renderAuthState(null)
-  })
-})
+function setStatus(kind, text) {
+  $('status').className = `status ${kind}`
+  $('status-text').textContent = text
+  $('setup-callout').hidden = kind === 'ok' || kind === ''
+}
 
-function formatTime(ts) {
-  if (!ts) return ''
-  const diff = Date.now() - ts
-  const m = Math.floor(diff / 60000)
+async function checkServer() {
+  setStatus('', 'Checking…')
+  const res = await send({ type: 'PG_HEALTH' })
+  if (!res) setStatus('bad', 'Extension error')
+  else if (res.ok) setStatus('ok', 'Connected')
+  else if (res.status === 401) setStatus('bad', 'API key rejected')
+  else setStatus('bad', 'Server offline')
+  return res
+}
+
+// ── Last scan ──────────────────────────────────────────────────
+
+function ago(ts) {
+  const m = Math.floor((Date.now() - ts) / 60000)
   if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
-  return `${Math.floor(m / 60)}h ago`
+  if (m < 60) return `${m} min ago`
+  const h = Math.floor(m / 60)
+  return h < 24 ? `${h} h ago` : `${Math.floor(h / 24)} d ago`
 }
 
-// ── Load last scan result ──────────────────────────────────────
-chrome.storage?.local?.get(['lastResult', 'enabled'], data => {
-  const r = data?.lastResult
+/** Stored scans come from the server (riskScore HIGH/MEDIUM/LOW) or the offline check (HIGH/MEDIUM/LOW/SAFE). */
+function levelOf(r) {
+  return r.safe || r.riskScore === 'SAFE' || r.riskScore === 'LOW' ? 'LOW' : r.riskScore
+}
 
-  // Sync toggle
-  const toggle = document.getElementById('toggle-enabled')
-  if (toggle && data?.enabled !== undefined) toggle.checked = data.enabled
+function fillFindings(ul, items) {
+  ul.replaceChildren(...items.map(w => {
+    const li = document.createElement('li')
+    li.className = String(w.severity || '').toLowerCase()
+    li.textContent = w.message
+    return li
+  }))
+}
 
+chrome.storage.local.get(['lastResult', 'enabled'], data => {
+  if (data.enabled !== undefined) $('toggle-enabled').checked = data.enabled
+  const r = data.lastResult
   if (!r) return
-
-  document.getElementById('last-scan-empty').style.display  = 'none'
-  document.getElementById('last-scan-result').style.display = 'block'
-
-  const domain = document.getElementById('scan-domain')
-  const badge  = document.getElementById('scan-badge')
-  const meta   = document.getElementById('scan-meta')
-  const warns  = document.getElementById('scan-warnings')
-
-  domain.textContent = r.domain
-  const label = r.safe ? 'SAFE' : r.riskScore
-  const via = r.source === 'server' ? 'PhishGuard server' : 'offline check'
-  badge.textContent  = label
-  badge.className    = `scan-badge ${label}`
-  meta.textContent   = `Scanned ${formatTime(r.timestamp)} · ${via}`
-
-  if (r.warnings?.length) {
-    warns.innerHTML = ''
-    r.warnings.forEach(w => {
-      const div = document.createElement('div')
-      div.className = `scan-warn ${w.severity === 'HIGH' ? '' : 'medium'}`
-      div.textContent = w.message
-      warns.appendChild(div)
-    })
-  }
-})
-
-// ── Toggle on/off ──────────────────────────────────────────────
-document.getElementById('toggle-enabled')?.addEventListener('change', e => {
-  chrome.storage?.local?.set({ enabled: e.target.checked })
+  $('last-empty').hidden = true
+  $('last-result').hidden = false
+  const level = levelOf(r)
+  const v = PG.verdict({ risk_score: level })
+  const offline = r.source !== 'server'
+  $('last-verdict').className = `verdict ${offline ? '' : level.toLowerCase()}`
+  $('last-headline').textContent = offline ? 'Offline check only' : v.headline
+  $('last-meta').textContent = ago(r.timestamp)
+  $('last-sender').textContent = r.email || r.domain
+  fillFindings($('last-findings'), (r.warnings || []).slice(0, 3))
 })
 
 // ── Quick check ────────────────────────────────────────────────
-document.getElementById('quick-btn')?.addEventListener('click', runQuickCheck)
-document.getElementById('quick-input')?.addEventListener('keydown', e => {
-  if (e.key === 'Enter') runQuickCheck()
-})
 
-async function runQuickCheck() {
-  const input = document.getElementById('quick-input')
-  const val   = input?.value?.trim()
+$('quick-form').addEventListener('submit', async e => {
+  e.preventDefault()
+  const val = $('quick-input').value.trim()
   if (!val) return
-
-  const domain = val.includes('@') ? val.split('@')[1] : val
-  const wrap   = document.getElementById('quick-result')
-  if (!wrap) return
-
-  // The server's analysis (same detector as the dashboard); the simplified local check if it is unreachable.
-  const sender = val.includes('@') ? val : `check@${domain}`
-  const res = await new Promise(resolve => chrome.runtime.sendMessage(
-    { type: 'PG_ANALYZE', payload: PG.buildPayload({ email: sender, subject: '', html: '', text: '' }) },
-    r => resolve(chrome.runtime.lastError ? { ok: false } : (r || { ok: false }))))
-  if (res.ok) { renderQuickServer(wrap, res.result); return }
-
-  const result = analyzeDomain(domain.toLowerCase())
-
-  const color = result.safe ? '#22c55e' : result.riskScore === 'HIGH' ? '#ef4444' : '#f59e0b'
-  const label = result.safe ? 'SAFE' : result.riskScore + ' RISK'
-
-  wrap.style.display = 'block'
-  wrap.innerHTML = ''
-
-  const box = document.createElement('div')
-  box.className = 'quick-result-box'
+  const domain = (val.includes('@') ? val.split('@')[1] : val).toLowerCase()
+  const btn = $('quick-btn')
+  btn.disabled = true
+  const res = await send({ type: 'PG_ANALYZE', payload: PG.buildPayload({ email: val.includes('@') ? val : `check@${domain}`, subject: '', html: '', text: '' }) })
+  btn.disabled = false
+  const wrap = $('quick-result')
+  wrap.hidden = false
+  wrap.replaceChildren()
 
   const row = document.createElement('div')
-  row.className = 'qr-row'
-  const domainSpan = document.createElement('span')
-  domainSpan.className = 'qr-domain'
-  domainSpan.textContent = domain
-  const badge = document.createElement('span')
-  badge.className = `scan-badge ${result.safe ? 'SAFE' : result.riskScore}`
-  badge.style.color = color
-  badge.textContent = label
-  row.appendChild(domainSpan)
-  row.appendChild(badge)
-  box.appendChild(row)
+  row.className = 'verdict'
+  const dot = document.createElement('span'); dot.className = 'verdict-dot'
+  const head = document.createElement('span'); head.className = 'verdict-text'
+  const list = document.createElement('ul'); list.className = 'findings'
+  const dom = document.createElement('p'); dom.className = 'sender'; dom.textContent = domain
 
-  if (!result.safe && result.bestMatch) {
-    const p = document.createElement('p')
-    p.className = 'qr-warn'
-    p.textContent = `Closest match: ${result.bestMatch.trusted} (d=${result.bestMatch.distance})`
-    box.appendChild(p)
+  if (res && res.ok) {
+    const v = PG.verdict(res.result)
+    row.classList.add(v.level.toLowerCase())
+    head.textContent = v.headline
+    fillFindings(list, PG.topFindings(res.result, 4))
+  } else {
+    // Server unreachable: the simplified local check, labelled as such.
+    let r = null
+    try { r = analyzeDomain(domain) } catch { /* invalid input */ }
+    head.textContent = 'Offline check only'
+    fillFindings(list, r ? (r.warnings || []).slice(0, 4) : [{ message: 'Could not check this address.' }])
   }
-  result.warnings?.forEach(w => {
-    const p = document.createElement('p')
-    p.className = 'qr-warn'
-    p.textContent = w.message
-    box.appendChild(p)
-  })
-  wrap.appendChild(box)
-}
-
-function renderQuickServer(wrap, result) {
-  const v = PG.verdict(result)
-  wrap.style.display = 'block'
-  wrap.innerHTML = ''
-  const box = document.createElement('div')
-  box.className = 'quick-result-box'
-  const row = document.createElement('div')
-  row.className = 'qr-row'
-  const d = document.createElement('span')
-  d.className = 'qr-domain'
-  d.textContent = result.domain
-  const badge = document.createElement('span')
-  badge.className = `scan-badge ${v.level === 'LOW' ? 'SAFE' : v.level}`
-  badge.style.color = v.color
-  badge.textContent = v.label
-  row.append(d, badge)
-  box.appendChild(row)
-  const note = document.createElement('p')
-  note.className = 'qr-warn'
-  note.textContent = 'Sender domain only. Hover a message in Gmail for the full analysis.'
-  box.appendChild(note)
-  PG.topFindings(result, 4).forEach(w => {
-    const p = document.createElement('p')
-    p.className = 'qr-warn'
-    p.textContent = w.message
-    box.appendChild(p)
-  })
-  wrap.appendChild(box)
-}
-
-// ── Server settings ───────────────────────────────────────────
-
-function setServerStatus(kind, text) {
-  document.getElementById('srv-dot').className = `srv-dot ${kind}`
-  document.getElementById('srv-text').textContent = text
-}
-
-function testServer() {
-  setServerStatus('', 'Checking…')
-  chrome.runtime.sendMessage({ type: 'PG_HEALTH' }, res => {
-    if (chrome.runtime.lastError || !res) return setServerStatus('bad', 'Extension error: reload the extension')
-    if (res.ok) setServerStatus('ok', 'Connected: full analysis is on')
-    else if (res.status === 401) setServerStatus('bad', 'Server reachable, but the API key was rejected')
-    else setServerStatus('bad', `${res.error || 'Not reachable'}: using the simplified offline check`)
-  })
-}
-
-chrome.storage?.local?.get(['apiUrl', 'apiKey', 'useHeaders', 'persist'], d => {
-  document.getElementById('srv-url').value = d.apiUrl || PG.DEFAULTS.apiUrl
-  document.getElementById('srv-key').value = d.apiKey || ''
-  document.getElementById('srv-headers').checked = d.useHeaders ?? PG.DEFAULTS.useHeaders
-  document.getElementById('srv-persist').checked = d.persist ?? PG.DEFAULTS.persist
-  testServer()
+  row.append(dot, head)
+  wrap.append(row, dom, list)
 })
 
-document.getElementById('srv-save')?.addEventListener('click', async () => {
-  const note = document.getElementById('srv-note')
-  const url = PG.normalizeApiUrl(document.getElementById('srv-url').value)
-  if (!url) {
-    setServerStatus('bad', 'Use an https address (http is only allowed for localhost)')
-    return
-  }
-  // Non-local servers need the user's explicit permission for that one origin.
+// ── Settings ───────────────────────────────────────────────────
+
+chrome.storage.local.get(['apiUrl', 'apiKey', 'useHeaders', 'persist'], d => {
+  $('srv-url').value = d.apiUrl || PG.DEFAULTS.apiUrl
+  $('srv-key').value = d.apiKey || ''
+  $('srv-headers').checked = d.useHeaders ?? PG.DEFAULTS.useHeaders
+  $('srv-persist').checked = d.persist ?? PG.DEFAULTS.persist
+  checkServer()
+})
+
+function saveMsg(kind, text) {
+  $('srv-msg').className = `msg ${kind}`
+  $('srv-msg').textContent = text
+}
+
+$('srv-save').addEventListener('click', async () => {
+  const btn = $('srv-save')
+  const url = PG.normalizeApiUrl($('srv-url').value)
+  if (!url) return saveMsg('bad', 'Use https, or http://localhost')
+  // A non-local server needs the user's explicit permission for that one origin.
   if (!PG.isLocalApi(url)) {
     const granted = await chrome.permissions.request({ origins: [PG.originPattern(url)] })
-    if (!granted) { setServerStatus('bad', 'Permission for that server was not granted'); return }
+    if (!granted) return saveMsg('bad', 'Permission not granted')
   }
-  chrome.storage.local.set({
-    apiUrl: url, apiKey: document.getElementById('srv-key').value.trim(),
-    useHeaders: document.getElementById('srv-headers').checked, persist: document.getElementById('srv-persist').checked,
-  }, () => {
-    document.getElementById('srv-url').value = url
-    if (note) note.textContent = 'Saved. Messages you hover over are sent to this server for analysis, and nowhere else.'
-    testServer()
+  btn.disabled = true
+  saveMsg('', 'Testing…')
+  await chrome.storage.local.set({
+    apiUrl: url, apiKey: $('srv-key').value.trim(),
+    useHeaders: $('srv-headers').checked, persist: $('srv-persist').checked,
   })
+  $('srv-url').value = url
+  const res = await checkServer()
+  btn.disabled = false
+  if (res && res.ok) saveMsg('ok', 'Saved. Connected.')
+  else if (res && res.status === 401) saveMsg('bad', 'Saved, but the key was rejected')
+  else saveMsg('bad', 'Saved, but the server is not reachable')
+})
+
+// ── Google account ─────────────────────────────────────────────
+
+function renderAuth(user) {
+  $('auth-out').hidden = !!user
+  $('auth-in').hidden = !user
+  if (!user) return
+  $('auth-avatar').src = user.picture || ''
+  $('auth-user-name').textContent = user.name || 'Signed in'
+  $('auth-user-email').textContent = user.email || ''
+}
+chrome.storage.local.get(['authUser'], d => renderAuth(d.authUser ?? null))
+
+$('auth-signin-btn').addEventListener('click', async () => {
+  const btn = $('auth-signin-btn')
+  btn.disabled = true
+  btn.textContent = 'Signing in…'
+  const res = await send({ type: 'AUTH_SIGN_IN' })
+  btn.disabled = false
+  btn.textContent = 'Sign in with Google'
+  if (res && res.success) renderAuth(res.user)
+})
+
+$('auth-signout-btn').addEventListener('click', async () => {
+  const res = await send({ type: 'AUTH_SIGN_OUT' })
+  if (res && res.success) renderAuth(null)
 })

@@ -70,7 +70,7 @@ test('topFindings sorts by severity and drops the verified-domain note', () => {
 })
 
 test('verdict and summarize', () => {
-  assert.equal(PG.verdict({ risk_score: 'HIGH' }).label, 'HIGH RISK')
+  assert.equal(PG.verdict({ risk_score: 'HIGH' }).headline, 'Likely phishing')
   assert.equal(PG.verdict({ risk_score: 'MEDIUM' }).level, 'MEDIUM')
   assert.equal(PG.verdict({}).level, 'LOW')
   const s = PG.summarize({ domain: 'x.com', risk_score: 'HIGH', risk_level: 80, warnings: [{ severity: 'HIGH', message: 'm', detail: 'd' }] }, 'a@x.com')
