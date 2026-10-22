@@ -8,97 +8,91 @@
 </head>
 <body>
   <header class="top">
-    <svg class="mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 2.5L4.5 5.8v5.7c0 4.7 3.2 8.6 7.5 10 4.3-1.4 7.5-5.3 7.5-10V5.8L12 2.5z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
-      <path d="M8.8 12.2l2.2 2.2 4.2-4.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
+    <span class="shape brand-shape" aria-hidden="true">
+      <svg viewBox="-1 -1 2 2"><path id="brand-blob" class="blob"/></svg>
+      <svg class="glyph" viewBox="0 0 24 24"><path d="M12 5.5l5.5 2.3v3.6c0 3.4-2.3 6.2-5.5 7.2-3.2-1-5.5-3.8-5.5-7.2V7.8L12 5.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" fill="none"/></svg>
+    </span>
     <div class="brand">
       <h1>PhishGuard</h1>
-      <span class="status" id="status"><span class="dot" id="status-dot"></span><span id="status-text">Checking…</span></span>
+      <span class="chip status" id="status"><span class="dot" id="status-dot"></span><span id="status-text">Checking…</span></span>
     </div>
-    <label class="switch" title="Turn warnings on or off">
+    <label class="switch" title="Show warnings in Gmail">
       <input type="checkbox" id="toggle-enabled" checked aria-label="Show warnings in Gmail" />
-      <span class="switch-track"></span>
+      <span class="track"><span class="thumb"></span></span>
     </label>
   </header>
 
-  <nav class="tabs" role="tablist">
-    <button class="tab active" role="tab" id="tab-overview" aria-selected="true" aria-controls="view-overview">Overview</button>
-    <button class="tab" role="tab" id="tab-settings" aria-selected="false" aria-controls="view-settings">Settings</button>
+  <nav class="segmented" role="tablist" aria-label="Sections">
+    <button class="seg" role="tab" id="tab-overview" aria-selected="true" aria-controls="view-overview">Overview</button>
+    <button class="seg" role="tab" id="tab-settings" aria-selected="false" aria-controls="view-settings">Settings</button>
   </nav>
 
   <main>
     <!-- Overview -->
     <section id="view-overview" role="tabpanel" aria-labelledby="tab-overview">
       <div class="callout" id="setup-callout" hidden>
-        <p class="callout-title">Connect your PhishGuard server</p>
-        <p>Full analysis runs on your own server. Start it with <code>python app.py</code>, then check the address in Settings.</p>
-        <button class="btn" id="goto-settings">Open settings</button>
+        <p class="callout-title">Connect your server</p>
+        <p>Full analysis runs on your own PhishGuard server. Start it with <code>python app.py</code>, then check the address in Settings.</p>
+        <button class="btn tonal" id="goto-settings">Open settings</button>
       </div>
 
-      <div class="card">
-        <h2>Last scan</h2>
-        <div id="last-empty" class="empty">Nothing yet. Open Gmail and hover over a sender.</div>
-        <div id="last-result" hidden>
-          <div class="verdict" id="last-verdict">
-            <span class="verdict-dot"></span>
-            <span class="verdict-text" id="last-headline">-</span>
-            <span class="verdict-meta" id="last-meta"></span>
-          </div>
-          <p class="sender" id="last-sender">-</p>
-          <ul class="findings" id="last-findings"></ul>
+      <h2 class="section">Last scan</h2>
+      <div class="hero lvl-wait" id="last-hero">
+        <span class="shape"><svg viewBox="-1 -1 2 2" aria-hidden="true"><path class="blob" id="last-blob"/></svg><svg class="glyph" id="last-glyph" viewBox="0 0 24 24" aria-hidden="true"></svg></span>
+        <div class="hero-text">
+          <div class="headline" id="last-headline">Nothing scanned yet</div>
+          <div class="sub" id="last-sub">Open Gmail and hover over a sender.</div>
         </div>
+        <span class="when" id="last-meta"></span>
       </div>
+      <div class="list" id="last-findings"></div>
 
-      <div class="card">
-        <h2><label for="quick-input">Check a sender</label></h2>
-        <form class="row" id="quick-form">
-          <input type="text" id="quick-input" placeholder="sender@example.com" spellcheck="false" autocomplete="off" />
-          <button class="btn primary" id="quick-btn" type="submit">Check</button>
-        </form>
-        <div id="quick-result" hidden></div>
-        <p class="help">Checks the domain only. Hover a message in Gmail for the full analysis.</p>
-      </div>
+      <h2 class="section"><label for="quick-input">Check a sender</label></h2>
+      <form class="quick" id="quick-form">
+        <input type="text" id="quick-input" placeholder="sender@example.com" spellcheck="false" autocomplete="off" />
+        <button class="btn filled" id="quick-btn" type="submit">Check</button>
+      </form>
+      <div id="quick-result" hidden></div>
+      <p class="help">Checks the domain only. Hover a message in Gmail for the full analysis.</p>
     </section>
 
     <!-- Settings -->
     <section id="view-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
-      <div class="card">
-        <h2>Server</h2>
+      <h2 class="section">Server</h2>
+      <div class="panel">
         <label class="field" for="srv-url">Address</label>
         <input type="text" id="srv-url" placeholder="http://localhost:5000/api" spellcheck="false" />
         <label class="field" for="srv-key">API key <span class="opt">optional</span></label>
         <input type="password" id="srv-key" placeholder="Only if your server requires one" autocomplete="off" />
-
-        <label class="option">
-          <input type="checkbox" id="srv-headers" checked />
-          <span><b>Read message headers</b><small>Uses SPF/DKIM/DMARC results, the real sender and attachments for a more accurate verdict.</small></span>
-        </label>
-        <label class="option">
-          <input type="checkbox" id="srv-persist" />
-          <span><b>Save scans to dashboard history</b><small>Off by default, so the server keeps no record of what you read.</small></span>
-        </label>
-
-        <div class="row end">
-          <span class="msg" id="srv-msg" role="status"></span>
-          <button class="btn primary" id="srv-save">Save and test</button>
-        </div>
-        <p class="help">Messages you hover over are sent only to this server. Addresses other than localhost must use https.</p>
       </div>
 
-      <div class="card">
-        <h2>Account</h2>
-        <div id="auth-out" class="row">
+      <div class="panel rows">
+        <label class="row-opt">
+          <span class="txt"><b>Read message headers</b><small>Uses SPF/DKIM/DMARC results, the real sender and attachments for a more accurate verdict.</small></span>
+          <span class="switch"><input type="checkbox" id="srv-headers" checked /><span class="track"><span class="thumb"></span></span></span>
+        </label>
+        <label class="row-opt">
+          <span class="txt"><b>Save scans to history</b><small>Off by default, so the server keeps no record of what you read.</small></span>
+          <span class="switch"><input type="checkbox" id="srv-persist" /><span class="track"><span class="thumb"></span></span></span>
+        </label>
+      </div>
+
+      <div class="actions">
+        <span class="msg" id="srv-msg" role="status"></span>
+        <button class="btn filled" id="srv-save">Save and test</button>
+      </div>
+      <p class="help">Messages you hover over are sent only to this server. Addresses other than localhost must use https.</p>
+
+      <h2 class="section">Account</h2>
+      <div class="panel">
+        <div id="auth-out" class="account">
           <p class="help flex">Sign in to sync scan history across devices.</p>
-          <button class="btn" id="auth-signin-btn">Sign in with Google</button>
+          <button class="btn outlined" id="auth-signin-btn">Sign in with Google</button>
         </div>
-        <div id="auth-in" class="row" hidden>
+        <div id="auth-in" class="account" hidden>
           <img class="avatar" id="auth-avatar" alt="" />
-          <div class="who">
-            <b id="auth-user-name">-</b>
-            <small id="auth-user-email">-</small>
-          </div>
-          <button class="btn" id="auth-signout-btn">Sign out</button>
+          <div class="who"><b id="auth-user-name">-</b><small id="auth-user-email">-</small></div>
+          <button class="btn outlined" id="auth-signout-btn">Sign out</button>
         </div>
       </div>
     </section>

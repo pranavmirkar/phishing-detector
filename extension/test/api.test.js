@@ -82,3 +82,12 @@ test('verdict and summarize', () => {
 test('limitRaw caps size', () => {
   assert.equal(PG.limitRaw('x'.repeat(3000000)).length, 2000000)
 })
+
+test('shapePath is a closed path inside the unit circle', () => {
+  for (const d of [PG.shapePath(), PG.shapePath(12, 0.14, true), PG.levelShape('HIGH'), PG.levelShape('LOW')]) {
+    assert.match(d, /^M[-\d. L]+Z$/)
+    const nums = d.slice(1, -1).split(/[L ]/).map(Number)
+    assert.ok(nums.every(n => Number.isFinite(n) && Math.abs(n) <= 1.0001))
+  }
+  assert.notEqual(PG.levelShape('HIGH'), PG.levelShape('LOW'))
+})

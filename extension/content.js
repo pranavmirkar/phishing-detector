@@ -116,41 +116,48 @@ function setPanel(panel, level, html) {
 function bindPanel(panel) {
   panel.querySelector('.pg-close')?.addEventListener('click', removePanel)
   panel.querySelector('.pg-more')?.addEventListener('click', e => {
-    panel.querySelectorAll('.pg-findings li[hidden]').forEach(li => { li.hidden = false })
+    panel.querySelectorAll('.pg-item[hidden]').forEach(li => { li.hidden = false })
     e.currentTarget.remove()
   })
 }
 
-const ICONS = {
-  low: '<path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
-  alert: '<path d="M12 8v5m0 3.5v.01M10.3 4.2L2.8 17.3A2 2 0 004.5 20.3h15a2 2 0 001.7-3L13.7 4.2a2 2 0 00-3.4 0z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
-  info: '<path d="M12 11v5.5m0-9v.01M12 21a9 9 0 100-18 9 9 0 000 18z" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>',
+const GLYPHS = {
+  low: '<path d="M5.5 12.5l4.2 4.2 8.8-9" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
+  alert: '<path d="M12 6.5v7M12 17.4v.1" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>',
+  info: '<path d="M12 11v6M12 7.6v.1" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
 }
+const CLOSE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
 const SEV = { HIGH: 'High', MEDIUM: 'Medium', LOW: 'Note' }
 
+/** The verdict hero: a shape whose edge gets sharper with the danger, the headline, and what to do. */
 function verdictBlock(level, headline, advice) {
-  const icon = level === 'low' ? ICONS.low : level === 'off' || level === 'wait' ? ICONS.info : ICONS.alert
-  return `<div class="pg-verdict">
-    <span class="pg-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg></span>
-    <div class="pg-verdict-text"><div class="pg-headline">${esc(headline)}</div>${advice ? `<div class="pg-advice">${esc(advice)}</div>` : ''}</div>
-    <button class="pg-close" aria-label="Close">×</button></div>`
+  const glyph = level === 'low' ? GLYPHS.low : level === 'off' || level === 'wait' ? GLYPHS.info : GLYPHS.alert
+  const blob = PG.levelShape(level.toUpperCase())
+  return `<div class="pg-hero pg-has-close">
+    <span class="pg-shape"><svg viewBox="-1 -1 2 2" aria-hidden="true"><path class="pg-blob" d="${blob}"/></svg>
+      <svg class="pg-glyph" viewBox="0 0 24 24" aria-hidden="true">${glyph}</svg></span>
+    <div class="pg-hero-text"><div class="pg-headline">${esc(headline)}</div>${advice ? `<div class="pg-advice">${esc(advice)}</div>` : ''}</div>
+    <button class="pg-close" aria-label="Close">${CLOSE_ICON}</button></div>`
 }
 
 function senderBlock(name, email, tag) {
   const shown = name && name.toLowerCase() !== email ? name : email
-  return `<div class="pg-sender"><span class="pg-from">${esc(shown)}</span>${shown !== email ? `<span class="pg-addr">${esc(email)}</span>` : ''}${tag ? `<span class="pg-tag">${esc(tag)}</span>` : ''}</div>`
+  return `<div class="pg-sender"><span class="pg-avatar" aria-hidden="true">${esc(shown.replace(/^[^a-z0-9]+/i, '').charAt(0) || '?')}</span>
+    <div class="pg-who"><div class="pg-from">${esc(shown)}</div>${shown !== email ? `<div class="pg-addr">${esc(email)}</div>` : ''}</div>
+    ${tag ? `<span class="pg-tag">${esc(tag)}</span>` : ''}</div>`
 }
 
 const SHOWN = 3
 function findingsBlock(findings, emptyText) {
-  if (!findings.length) return emptyText ? `<div class="pg-none">${esc(emptyText)}</div>` : ''
-  const items = findings.map((w, i) => `<li${i >= SHOWN ? ' hidden' : ''}><span class="pg-sev pg-sev-${esc(String(w.severity).toLowerCase())}">${SEV[w.severity] || 'Note'}</span><span class="pg-msg">${esc(w.message)}</span></li>`).join('')
-  return `<div class="pg-section-title">Why</div><ul class="pg-findings">${items}</ul>
+  if (!findings.length) return emptyText ? `<div class="pg-empty">${esc(emptyText)}</div>` : ''
+  const items = findings.map((w, i) => `<div class="pg-item"${i >= SHOWN ? ' hidden' : ''}><span class="pg-sev pg-sev-${esc(String(w.severity).toLowerCase())}">${SEV[w.severity] || 'Note'}</span><span class="pg-msg">${esc(w.message)}</span></div>`).join('')
+  return `<div class="pg-label">Why</div><div class="pg-list pg-findings">${items}</div>
     ${findings.length > SHOWN ? `<button class="pg-more">Show ${findings.length - SHOWN} more</button>` : ''}`
 }
 
 function loadingHtml(name, email) {
-  return `${verdictBlock('wait', 'Checking this sender…', '')}${senderBlock(name, email)}
+  return `${verdictBlock('wait', 'Checking…', 'Looking at the sender and message')}
+    <div class="pg-body">${senderBlock(name, email)}</div>
     <div class="pg-skeleton"><span></span><span></span><span></span></div>`
 }
 
@@ -159,13 +166,14 @@ function renderServer(result, usedHeaders, ctx, email) {
   const level = v.level.toLowerCase()
   const da = result.domain_analysis || {}
   const findings = PG.topFindings(result, 8)
-  const how = usedHeaders ? 'Checked sender, headers and message'
-    : ctx.opened ? 'Checked sender and message (no headers)' : 'Checked sender and subject only'
+  const how = usedHeaders ? 'Sender, headers, message'
+    : ctx.opened ? 'Sender and message' : 'Sender and subject only'
   const hint = !usedHeaders && !ctx.opened ? '<div class="pg-hint">Open the message for a fuller check.</div>' : ''
-  const tag = da.is_trusted ? 'Known domain' : da.is_freemail ? 'Free mailbox provider' : ''
+  const tag = da.is_trusted ? 'Known domain' : da.is_freemail ? 'Free mailbox' : ''
   const none = level === 'low' ? 'Nothing suspicious found in the sender, links or wording.' : ''
-  return `${verdictBlock(level, v.headline, v.advice)}${senderBlock(ctx.name, email, tag)}${findingsBlock(findings, none)}${hint}
-    <div class="pg-foot"><span>${how}</span><span>Risk ${result.risk_level}/100</span></div>`
+  return `${verdictBlock(level, v.headline, v.advice)}
+    <div class="pg-body">${senderBlock(ctx.name, email, tag)}${findingsBlock(findings, none)}${hint}</div>
+    <div class="pg-chips"><span class="pg-chip">${how}</span><span class="pg-chip">Risk ${result.risk_level}/100</span></div>`
 }
 
 function renderLocal(email, domain, anchorEl, reason, ctx) {
@@ -176,9 +184,10 @@ function renderLocal(email, domain, anchorEl, reason, ctx) {
   const warn = result ? [...(result.warnings || []), ...(spam.signals || []).map(x => ({ ...x, severity: 'LOW' }))] : []
   if (result) chrome.storage?.local?.set({ lastResult: { email, domain, ...result, spam, source: 'local', timestamp: Date.now() } })
   return `${verdictBlock('off', 'Server not reachable', 'Showing a limited offline check. It cannot tell whether a message is forged.')}
-    ${senderBlock(ctx.name, email)}
+    <div class="pg-body">${senderBlock(ctx.name, email)}
     ${findingsBlock(warn.slice(0, 6).map(w => ({ severity: w.severity, message: w.message })), 'The offline check found nothing, which is not the same as safe.')}
-    <div class="pg-hint">${esc(reason)}. Start the PhishGuard server, or set its address in the extension popup.</div>`
+    <div class="pg-hint">${esc(reason)}. Start the PhishGuard server, or set its address in the extension popup.</div></div>
+    <div class="pg-chips"><span class="pg-chip">Offline check</span></div>`
 }
 
 async function showPanel(anchorEl, email, domain) {

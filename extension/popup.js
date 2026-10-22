@@ -25,7 +25,7 @@ $('toggle-enabled').addEventListener('change', e => chrome.storage.local.set({ e
 // ── Connection status ──────────────────────────────────────────
 
 function setStatus(kind, text) {
-  $('status').className = `status ${kind}`
+  $('status').className = `chip status ${kind}`
   $('status-text').textContent = text
   $('setup-callout').hidden = kind === 'ok' || kind === ''
 }
@@ -42,6 +42,13 @@ async function checkServer() {
 
 // ── Last scan ──────────────────────────────────────────────────
 
+const GLYPHS = {
+  low: '<path d="M5.5 12.5l4.2 4.2 8.8-9" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
+  alert: '<path d="M12 6.5v7M12 17.4v.1" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" fill="none"/>',
+  info: '<path d="M12 11v6M12 7.6v.1" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/>',
+}
+const SEV = { HIGH: 'High', MEDIUM: 'Medium', LOW: 'Note' }
+
 function ago(ts) {
   const m = Math.floor((Date.now() - ts) / 60000)
   if (m < 1) return 'just now'
@@ -55,28 +62,47 @@ function levelOf(r) {
   return r.safe || r.riskScore === 'SAFE' || r.riskScore === 'LOW' ? 'LOW' : r.riskScore
 }
 
-function fillFindings(ul, items) {
-  ul.replaceChildren(...items.map(w => {
-    const li = document.createElement('li')
-    li.className = String(w.severity || '').toLowerCase()
-    li.textContent = w.message
-    return li
+/** Fill a hero block: its colour role, shape (sharper = more dangerous), glyph and text. */
+function setHero(hero, { level, headline, sub, meta }) {
+  hero.className = `hero lvl-${level.toLowerCase()}`
+  hero.querySelector('.blob').setAttribute('d', PG.levelShape(level))
+  hero.querySelector('.glyph').innerHTML = level === 'LOW' ? GLYPHS.low : level === 'WAIT' || level === 'OFF' ? GLYPHS.info : GLYPHS.alert
+  hero.querySelector('.headline').textContent = headline
+  hero.querySelector('.sub').textContent = sub
+  const when = hero.querySelector('.when')
+  if (when) when.textContent = meta || ''
+}
+
+function fillFindings(list, items) {
+  list.replaceChildren(...items.map(w => {
+    const row = document.createElement('div')
+    row.className = 'item'
+    const sev = document.createElement('span')
+    const key = String(w.severity || 'LOW').toLowerCase()
+    sev.className = `sev ${key}`
+    sev.textContent = SEV[w.severity] || 'Note'
+    const txt = document.createElement('span')
+    txt.className = 'msg-t'
+    txt.textContent = w.message
+    row.append(sev, txt)
+    return row
   }))
 }
+
+document.getElementById('brand-blob').setAttribute('d', PG.shapePath(9, 0.07))
+setHero($('last-hero'), { level: 'WAIT', headline: 'Nothing scanned yet', sub: 'Open Gmail and hover over a sender.' })
 
 chrome.storage.local.get(['lastResult', 'enabled'], data => {
   if (data.enabled !== undefined) $('toggle-enabled').checked = data.enabled
   const r = data.lastResult
   if (!r) return
-  $('last-empty').hidden = true
-  $('last-result').hidden = false
   const level = levelOf(r)
-  const v = PG.verdict({ risk_score: level })
   const offline = r.source !== 'server'
-  $('last-verdict').className = `verdict ${offline ? '' : level.toLowerCase()}`
-  $('last-headline').textContent = offline ? 'Offline check only' : v.headline
-  $('last-meta').textContent = ago(r.timestamp)
-  $('last-sender').textContent = r.email || r.domain
+  setHero($('last-hero'), {
+    level: offline ? 'OFF' : level,
+    headline: offline ? 'Offline check only' : PG.verdict({ risk_score: level }).headline,
+    sub: r.email || r.domain, meta: ago(r.timestamp),
+  })
   fillFindings($('last-findings'), (r.warnings || []).slice(0, 3))
 })
 
@@ -91,31 +117,25 @@ $('quick-form').addEventListener('submit', async e => {
   btn.disabled = true
   const res = await send({ type: 'PG_ANALYZE', payload: PG.buildPayload({ email: val.includes('@') ? val : `check@${domain}`, subject: '', html: '', text: '' }) })
   btn.disabled = false
+
   const wrap = $('quick-result')
   wrap.hidden = false
-  wrap.replaceChildren()
-
-  const row = document.createElement('div')
-  row.className = 'verdict'
-  const dot = document.createElement('span'); dot.className = 'verdict-dot'
-  const head = document.createElement('span'); head.className = 'verdict-text'
-  const list = document.createElement('ul'); list.className = 'findings'
-  const dom = document.createElement('p'); dom.className = 'sender'; dom.textContent = domain
-
+  const hero = document.createElement('div')
+  hero.innerHTML = '<span class="shape"><svg viewBox="-1 -1 2 2" aria-hidden="true"><path class="blob"/></svg><svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"></svg></span><div class="hero-text"><div class="headline"></div><div class="sub"></div></div>'
+  const list = document.createElement('div')
+  list.className = 'list'
   if (res && res.ok) {
     const v = PG.verdict(res.result)
-    row.classList.add(v.level.toLowerCase())
-    head.textContent = v.headline
+    setHero(hero, { level: v.level, headline: v.headline, sub: domain })
     fillFindings(list, PG.topFindings(res.result, 4))
   } else {
     // Server unreachable: the simplified local check, labelled as such.
     let r = null
     try { r = analyzeDomain(domain) } catch { /* invalid input */ }
-    head.textContent = 'Offline check only'
-    fillFindings(list, r ? (r.warnings || []).slice(0, 4) : [{ message: 'Could not check this address.' }])
+    setHero(hero, { level: 'OFF', headline: 'Offline check only', sub: domain })
+    fillFindings(list, r ? (r.warnings || []).slice(0, 4) : [{ severity: 'LOW', message: 'Could not check this address.' }])
   }
-  row.append(dot, head)
-  wrap.append(row, dom, list)
+  wrap.replaceChildren(hero, list)
 })
 
 // ── Settings ───────────────────────────────────────────────────

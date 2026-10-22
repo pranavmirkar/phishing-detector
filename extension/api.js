@@ -104,9 +104,28 @@
     }
   }
 
+  /** SVG path for an expressive scalloped shape (viewBox -1 -1 2 2). `sharp` gives pointed burst edges instead of soft lobes. */
+  function shapePath(lobes = 9, amp = 0.08, sharp = false, steps = 120) {
+    const pts = []
+    for (let i = 0; i < steps; i++) {
+      const t = (i / steps) * Math.PI * 2
+      const w = sharp ? (2 / Math.PI) * Math.asin(Math.cos(lobes * t)) : Math.cos(lobes * t)
+      const r = (1 + amp * w) / (1 + amp)
+      pts.push(`${(Math.cos(t) * r).toFixed(3)} ${(Math.sin(t) * r).toFixed(3)}`)
+    }
+    return `M${pts.join('L')}Z`
+  }
+
+  /** Shape per verdict: calm soft lobes when fine, a spiky burst when dangerous. */
+  function levelShape(level) {
+    if (level === 'HIGH') return shapePath(12, 0.14, true)
+    if (level === 'MEDIUM') return shapePath(8, 0.1)
+    return shapePath(9, 0.07)
+  }
+
   const api = {
     DEFAULTS, normalizeApiUrl, originPattern, isLocalApi, formatSender, accountFromTitle, buildPayload,
-    messageIdToDecimal, originalMessageUrl, looksLikeRawEmail, limitRaw, topFindings, verdict, summarize,
+    messageIdToDecimal, originalMessageUrl, looksLikeRawEmail, limitRaw, topFindings, verdict, summarize, shapePath, levelShape,
   }
   if (typeof module !== 'undefined' && module.exports) module.exports = api
   else root.PG = api

@@ -65,16 +65,16 @@ auth, rate limiting, optional "do not store message bodies" mode, Docker packagi
 
 ## Gmail extension
 
-`extension/` is a Manifest V3 Chrome extension. Hover a sender in Gmail and it sends the sender, subject and body (and,
+`extension/` is a Manifest V3 Chrome extension designed to Material 3 Expressive (tonal colour roles, large shapes, a verdict shape that turns spiky as the risk rises; light/dark follows the system). Hover a sender in Gmail and it sends the sender, subject and body (and,
 for an opened message, Gmail's own "original message" so SPF/DKIM/DMARC, the envelope sender and attachments are
 available) to **your** PhishGuard server and shows the same verdict and findings as the dashboard. If the server is
 down it says so and runs a simplified local check instead.
 
 <table>
 <tr>
-<td><img src="docs/screenshots/extension-panel.png" alt="PhishGuard panel on a flagged message in Gmail"><br><sub><b>Panel</b>: verdict first, then why</sub></td>
-<td width="240"><img src="docs/screenshots/extension-popup.png" alt="Extension popup, overview"><br><sub><b>Popup</b>: overview (light)</sub></td>
-<td width="240"><img src="docs/screenshots/extension-settings-dark.png" alt="Extension popup, settings in dark theme"><br><sub><b>Settings</b> (dark)</sub></td>
+<td><img src="docs/screenshots/extension-panel.png" alt="PhishGuard panel on a flagged message in Gmail"><br><sub><b>Panel</b>: the verdict first, then why</sub></td>
+<td width="240"><img src="docs/screenshots/extension-popup.png" alt="Extension popup, overview"><br><sub><b>Popup</b>: overview, light</sub></td>
+<td width="240"><img src="docs/screenshots/extension-settings-dark.png" alt="Extension popup, settings in dark theme"><br><sub><b>Settings</b>: dark</sub></td>
 </tr>
 </table>
 
