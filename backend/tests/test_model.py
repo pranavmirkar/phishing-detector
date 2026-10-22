@@ -146,3 +146,26 @@ def test_unsupported_signals_keep_their_rule_points_as_a_floor(tmp_path, monkeyp
     r = det.analyze({"sender": "ceo.office@gmail.com", "subject": "Quick favor",
                      "content": "Are you available? Buy gift cards today. Keep this confidential."})
     assert r["model"]["rule_floor"] >= 50 and r["risk_level"] >= 50 and r["risk_score"] == "HIGH"     # the model alone would say LOW
+
+
+def test_brand_lookalike_keeps_its_rule_points_whatever_the_training_support(tmp_path, monkeypatch):
+    """A homoglyph of a protected brand must never be scored below its rule points by the model."""
+    spec = tiny_model(tmp_path / "m.json", feature="spam")          # a model that rates everything LOW
+    spec["support"] = {"LOOKALIKE_DOMAIN": 500, "HOMOGLYPH_ATTACK": 500}   # ... and has "plenty of evidence" for the signals
+    (tmp_path / "m.json").write_text(json.dumps({**spec, "floor_always": ["LOOKALIKE_DOMAIN", "HOMOGLYPH_ATTACK"]}), encoding="utf-8")
+    monkeypatch.setenv("PG_MODEL", str(tmp_path / "m.json"))
+    M.reset()
+    mail = {"sender": "support@paypa1.com", "subject": "Verify your account", "content": "sign in now"}
+    with_floor = D.PhishingDetector(use_whois=False).analyze(mail)
+    assert with_floor["risk_score"] in ("MEDIUM", "HIGH"), with_floor["model"]
+
+    (tmp_path / "m.json").write_text(json.dumps(spec), encoding="utf-8")   # same model without floor_always
+    M.reset()
+    assert D.PhishingDetector(use_whois=False).analyze(mail)["risk_level"] < with_floor["risk_level"]
+
+
+def test_bundled_model_flags_a_plain_brand_homoglyph(monkeypatch):
+    monkeypatch.setenv("PG_MODEL", BUNDLED)             # the suite runs with the model off by default
+    M.reset()
+    r = D.PhishingDetector(use_whois=False).analyze({"sender": "support@paypa1.com", "subject": "Verify your account", "content": "sign in now"})
+    assert r["risk_score"] in ("MEDIUM", "HIGH"), r["model"]

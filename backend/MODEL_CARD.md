@@ -14,7 +14,7 @@ JSON and evaluated in pure Python (no scikit-learn or numpy at runtime). `PG_MOD
 | Deliberately **not** used | display name present, `List-Id`, attachment presence, HTML, message length (era proxies or trivially spoofable), `X-Spam-*` (another filter's verdict) |
 | Training data | 6,129 emails: 2,345 phishing (Nazario 2015-2023) and 3,784 legitimate (SpamAssassin ham / hard ham, Enron corporate mail, Apache mailing lists), from the `dev` and `val` splits |
 | Verdict thresholds | MEDIUM = raw score at which **1%** of legitimate training mail is flagged; HIGH = **0.1%**. Computed on 5-fold *out-of-fold* predictions in which all mail from one sender stays in one fold |
-| Support-aware floor | Signals with fewer than 20 phishing training examples (punycode, return-path forgery, BEC wording, ...) are not judged by the model: their rule points stay as a floor under the score |
+| Support-aware floor | Signals with fewer than 20 phishing training examples (punycode, return-path forgery, BEC wording, ...) are not judged by the model: their rule points stay as a floor under the score. Look-alike and homoglyph domains of protected brands (`floor_always`) keep their rule points as a floor even though the data has examples, because a model trained on credential phishing under-weights them |
 
 ## How it was evaluated
 

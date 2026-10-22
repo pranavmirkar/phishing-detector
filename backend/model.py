@@ -80,6 +80,7 @@ class Model:
         self.meta = d.get("meta", {})
         self.support = d.get("support", {})              # signal type -> number of phishing training emails showing it
         self.min_support = int(d.get("min_support", 20))
+        self.floor_always = set(d.get("floor_always", []))   # impersonation signals whose rule points are always a floor
         self._index = {n: i for i, n in enumerate(self.features)}
 
     def vector(self, feats: dict) -> list:
@@ -102,7 +103,8 @@ class Model:
 
     def unsupported_points(self, signal_points: dict) -> int:
         """Rule points for signals the training data cannot judge (kept as a floor under the model's score)."""
-        return sum(p for t, p in signal_points.items() if self.support.get(t, 0) < self.min_support)
+        return sum(p for t, p in signal_points.items()
+                   if self.support.get(t, 0) < self.min_support or t in self.floor_always)
 
     def risk(self, raw: float) -> int:
         xs, ys = self.anchors["raw"], self.anchors["risk"]

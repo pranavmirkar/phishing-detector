@@ -21,7 +21,7 @@ ordinary pasted fields or a **raw `.eml` message with headers**, runs offline an
 your machine, and is benchmarked on real public phishing from 2015 to 2025, not only on data it was written against.
 
 > **Honest status.** On a locked test of **unseen 2024-2025 phishing** and ~4,500 unseen legitimate emails, PhishGuard
-> catches **91.6%** of phishing and wrongly flags **1.4%** of the legitimate mail in that test (13.9 per 1,000). That
+> catches **92.3%** of phishing and wrongly flags **1.4%** of the legitimate mail in that test (13.9 per 1,000). That
 > makes it a solid *"take a second look"* assistant, but it is **not** a replacement for a commercial email-security
 > gateway, and the legitimate test mail is narrow (no marketing mail or receipts). The [accuracy section](#accuracy)
 > shows exactly what was measured, what was not, and where it is still weak.
@@ -120,7 +120,8 @@ flowchart LR
 4. **Score.** Every signal gets rule points. A learned model (gradient-boosted trees, evaluated in pure Python) reads those
    points plus era-neutral lexical and link features and produces the 0-100 score: **LOW** (< 25), **MEDIUM** (25-54),
    **HIGH** (>= 55), where MEDIUM is the cut-off that flagged ~1% of legitimate training mail and HIGH ~0.1%. For
-   signals the training data cannot judge (fewer than 20 phishing examples) the rule points are kept as a floor.
+   signals the training data cannot judge (fewer than 20 phishing examples), and for look-alike / homoglyph domains
+   of protected brands, the rule points are kept as a floor.
    `PG_MODEL=off` uses the rule score alone.
 5. **Explain.** Every finding carries a severity, message and detail; the model changes the score, not the evidence.
 
@@ -265,18 +266,18 @@ model never saw anything later than 2023. Thresholds were calibrated on out-of-f
 
 | | Original | Previous | Rules only (now) | **Now (rules + model)** |
 |---|---|---|---|---|
-| Phishing caught (recall) | 33.3% | 50.7% | 72.0% | **91.6%** (95% CI 88.6-93.9) |
+| Phishing caught (recall) | 33.3% | 50.7% | 72.0% | **92.3%** (95% CI 89.4-94.5) |
 | **Legitimate mail wrongly flagged, per 1,000** | 618 | 27.3 | 16.7 | **13.9** (10.9-17.7) |
-| Precision if 1 email in 100 is phishing | 0.5% | 15.8% | 30.3% | **40.0%** |
-| HIGH only: recall / false alarms per 1,000 | 3.3% / 461 | 15.1% / 2.0 | 46.4% / 3.1 | **83.7% / 2.2** |
+| Precision if 1 email in 100 is phishing | 0.5% | 15.8% | 30.3% | **40.2%** |
+| HIGH only: recall / false alarms per 1,000 | 3.3% / 461 | 15.1% / 2.0 | 46.4% / 3.1 | **84.4% / 2.2** |
 | Median / p95 time per email | 88 / 170 ms | 51 / 121 ms | 28 / 42 ms | **28 / 45 ms** |
 
-Recall by year: **2024 91.5%, 2025 91.7%**. False alarms by source: Enron corporate mail 1.7%, SpamAssassin ham 0.4-0.8%,
+Recall by year: **2024 93.0%, 2025 91.7%**. False alarms by source: Enron corporate mail 1.7%, SpamAssassin ham 0.4-0.8%,
 **SpamAssassin hard ham (legitimate mail that looks like spam) 4.0%**, Apache lists 0-5.3%.
 
-**Which inputs matter** (same locked test): everything available 91.6% / 13.9 per 1,000; recipient's organisation
-unknown 90.9% / 13.0; **body, sender and subject only (no headers at all) 86.1% / 13.7**. HIGH-only recall falls from
-83.7% to 73.2% without headers.
+**Which inputs matter** (same locked test): everything available 92.3% / 13.9 per 1,000; recipient's organisation
+unknown 91.6% / 13.0; **body, sender and subject only (no headers at all) 86.8% / 12.5**. HIGH-only recall falls from
+84.4% to 73.9% without headers.
 
 **Calibration.** MEDIUM was set to flag 1% of legitimate training mail and flagged 1.4% on the test; HIGH was set to
 0.1% and flagged 0.2%. Budgets transfer to within about 1.5-2x, not exactly.
@@ -287,12 +288,12 @@ Scored against three project-defined tiers (this project's own targets, not an i
 
 | Tier | Target | Locked test result |
 |---|---|---|
-| Warning assistant | >= 70% caught, <= 20 false alarms per 1,000 | **Met** (91.6%; 13.9, interval 10.9-17.7) |
-| Inbox filter | >= 90% caught, <= 1 false alarm per 1,000 | **Not met** (13.9 per 1,000; HIGH 2.2 per 1,000 with 83.7% caught) |
+| Warning assistant | >= 70% caught, <= 20 false alarms per 1,000 | **Met** (92.3%; 13.9, interval 10.9-17.7) |
+| Inbox filter | >= 90% caught, <= 1 false alarm per 1,000 | **Not met** (13.9 per 1,000; HIGH 2.2 per 1,000 with 84.4% caught) |
 | Production gateway | >= 99% caught, <= 0.1 false alarms per 1,000 | **Not met** (roughly where commercial products operate) |
 
 **Bottom line:** use it as a second opinion that a person reviews: MEDIUM = "look twice", HIGH = "probably phishing"
-(97% precision on the balanced test set, 83.7% recall). Do not use it to hide or delete mail automatically, and do not
+(97% precision on the balanced test set, 84.4% recall). Do not use it to hide or delete mail automatically, and do not
 read "Met" as a promise about your inbox: the legitimate test mail contains no marketing mail or receipts.
 
 ### Synthetic sets
@@ -302,7 +303,7 @@ how the learned model's blind spots were found (see below).
 
 | Set | Original (accuracy) | Now (accuracy / F1) |
 |---|---|---|
-| Development, 306 emails | 85.0% | 98.0% / 98.4% |
+| Development, 306 emails | 85.0% | 98.4% / 98.7% |
 | Second set, 258 emails | 51.9% | 95.7% / 96.6% |
 
 Reports: [`REPORT.md`](backend/benchmark/REPORT.md), [`REPORT_holdout.md`](backend/benchmark/REPORT_holdout.md),
@@ -316,6 +317,11 @@ the model was trained on them.
   rule floor. This choice was made from the synthetic and `test_seen` data **after** the pure model had scored 91.6% /
   11.2 per 1,000 on the locked test; the floor costs 2.7 false alarms per 1,000 at the same recall. Both numbers are
   recorded here.
+- A CI smoke test later showed that `support@paypa1.com` with a one-line body scored LOW: the training data has few
+  look-alike domains, so the model discounted them. Look-alike and homoglyph signals now always keep their rule points
+  as a floor (`floor_always` in the model file). That change came from the smoke test, not from test-set errors; the
+  locked test was re-run once afterwards: recall 91.6% to 92.3%, false alarms unchanged at 13.9 per 1,000. On the dev and
+  `test_seen` splits it added about one legitimate false alarm per 500 emails and no recall change.
 - Two emails crashed the detector on the first test run (malformed links). The bugs were fixed and the test re-run; no
   rule was tuned on test emails.
 - When legitimate mail was re-split by sender, some legitimate emails that had been inspected earlier (while fixing

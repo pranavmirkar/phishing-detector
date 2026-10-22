@@ -9,10 +9,10 @@ Positive class = phishing. An email is flagged when its risk score is at or abov
 | Operating point | Threshold | Accuracy | Balanced acc. | Precision | Recall | Specificity | F1 |
 |---|---|---|---|---|---|---|---|
 | MEDIUM or HIGH flagged | 25 | 95.7% | 96.7% | 100.0% | 93.3% | 100.0% | 96.6% |
-| HIGH only flagged | 55 | 79.5% | 83.9% | 100.0% | 67.9% | 100.0% | 80.9% |
+| HIGH only flagged | 55 | 80.2% | 84.5% | 100.0% | 69.1% | 100.0% | 81.7% |
 
 Confusion matrix, MEDIUM or HIGH flagged: TP=154 FP=0 TN=93 FN=11  
-Confusion matrix, HIGH only flagged: TP=112 FP=0 TN=93 FN=53  
+Confusion matrix, HIGH only flagged: TP=114 FP=0 TN=93 FN=51  
 
 ## Held-out validation
 
@@ -43,7 +43,7 @@ The dataset was split 70/30 (stratified, seed 7). The score threshold was chosen
 | phishing | crypto_giveaway | 10 | 10 | 100.0% | 44 |
 | phishing | display_name_spoof | 10 | 10 | 100.0% | 85 |
 | phishing | freemail_scam_text | 12 | 12 | 100.0% | 56 |
-| phishing | punycode_idn | 15 | 14 | 93.3% | 70 |
+| phishing | punycode_idn | 15 | 14 | 93.3% | 71 |
 | phishing | shipping_lure | 10 | 10 | 100.0% | 30 |
 | phishing | spoofed_trusted_no_signal | 6 | 0 | 0.0% | 8 |
 | phishing | spoofed_trusted_reply_to | 10 | 9 | 90.0% | 48 |
@@ -51,7 +51,7 @@ The dataset was split 70/30 (stratified, seed 7). The score threshold was chosen
 | phishing | suffix_squat | 15 | 15 | 100.0% | 70 |
 | phishing | throwaway_domain_lure | 10 | 8 | 80.0% | 59 |
 | phishing | tld_squat | 11 | 11 | 100.0% | 69 |
-| phishing | typo_double | 9 | 9 | 100.0% | 75 |
+| phishing | typo_double | 9 | 9 | 100.0% | 78 |
 | phishing | typo_rn | 4 | 4 | 100.0% | 76 |
 | phishing | typo_vowel | 13 | 12 | 92.3% | 68 |
 
@@ -65,15 +65,15 @@ The dataset was split 70/30 (stratified, seed 7). The score threshold was chosen
 | 20 | 95.7% | 94.5% | 7.5% | 95.1% | 93.8% |
 | 25 | 100.0% | 93.3% | 0.0% | 96.6% | 95.7% |
 | 30 | 100.0% | 87.9% | 0.0% | 93.5% | 92.2% |
-| 35 | 100.0% | 86.7% | 0.0% | 92.9% | 91.5% |
-| 40 | 100.0% | 78.8% | 0.0% | 88.1% | 86.4% |
-| 45 | 100.0% | 78.2% | 0.0% | 87.8% | 86.0% |
-| 50 | 100.0% | 77.0% | 0.0% | 87.0% | 85.3% |
-| 55 | 100.0% | 67.9% | 0.0% | 80.9% | 79.5% |
+| 35 | 100.0% | 87.3% | 0.0% | 93.2% | 91.9% |
+| 40 | 100.0% | 79.4% | 0.0% | 88.5% | 86.8% |
+| 45 | 100.0% | 78.8% | 0.0% | 88.1% | 86.4% |
+| 50 | 100.0% | 77.6% | 0.0% | 87.4% | 85.7% |
+| 55 | 100.0% | 69.1% | 0.0% | 81.7% | 80.2% |
 | 60 | 100.0% | 63.6% | 0.0% | 77.8% | 76.7% |
 | 65 | 100.0% | 51.5% | 0.0% | 68.0% | 69.0% |
-| 70 | 100.0% | 44.8% | 0.0% | 61.9% | 64.7% |
-| 75 | 100.0% | 40.6% | 0.0% | 57.8% | 62.0% |
+| 70 | 100.0% | 45.5% | 0.0% | 62.5% | 65.1% |
+| 75 | 100.0% | 41.2% | 0.0% | 58.4% | 62.4% |
 | 80 | 100.0% | 29.7% | 0.0% | 45.8% | 55.0% |
 | 85 | 100.0% | 24.2% | 0.0% | 39.0% | 51.6% |
 | 90 | 100.0% | 11.5% | 0.0% | 20.7% | 43.4% |

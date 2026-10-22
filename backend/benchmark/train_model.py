@@ -40,6 +40,8 @@ import model as M  # noqa: E402
 from benchmark import corpora as C, engine  # noqa: E402
 
 DATA = os.path.join(BACKEND, "benchmark", "data", "real")
+# Structural impersonation signals: whatever the training mix says, a homoglyph/lookalike of a protected brand keeps its rule points as a floor.
+FLOOR_ALWAYS = ["LOOKALIKE_DOMAIN", "HOMOGLYPH_ATTACK"]
 PARAMS = dict(max_depth=4, max_iter=250, learning_rate=0.05, l2_regularization=5.0, random_state=0, early_stopping=False)   # chosen by grouped CV on train data
 
 
@@ -168,6 +170,7 @@ def main():
                 if k.startswith("sig:") and v > 0:
                     support[k[4:]] = support.get(k[4:], 0) + 1
     spec["support"], spec["min_support"] = support, 20
+    spec["floor_always"] = FLOOR_ALWAYS
     model = M.Model(spec)
 
     # the exported pure-Python model must reproduce scikit-learn exactly
