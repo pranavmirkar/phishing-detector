@@ -194,8 +194,8 @@ generates a `PG_API_KEY`, and serves `https://<name>.onrender.com`. Then in the 
   server for analysis, and the extension sends the messages you hover over to it.
 - On Render's free plan the service sleeps when idle and the first request after that takes 30-60 s; the extension then
   shows its offline fallback for that message. A paid plan avoids this.
-- The free plan's disk is not persistent: the trusted-domain list is downloaded again on each start (the first minute
-  after a start uses a smaller list) and scan history is lost. Scans are not saved by default anyway.
+- The free plan's disk is not persistent: the trusted-domain list is downloaded again on each start (until it finishes,
+  usually a minute or two, known-domain checks are weaker, so expect a few extra warnings on legitimate mail) and scan history is lost. Scans are not saved by default anyway.
 
 CI builds both images, starts the stack and smoke-tests it on every push (see `.github/workflows/ci.yml`). The images
 have not been built on the author's machine (Docker was not running there), so treat the CI run as the verification.
